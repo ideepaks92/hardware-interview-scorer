@@ -703,6 +703,12 @@ export default function DashboardPage() {
                         <span className="text-muted">—</span>
                         <span className="text-sm text-muted">{fb.interview_date}</span>
                       </div>
+                      {fb.overall_comments && (
+                        <div className="bg-accent-light rounded-lg p-3 mb-3">
+                          <p className="text-xs font-semibold text-accent uppercase mb-1">Overall Notes</p>
+                          <p className="text-sm">{fb.overall_comments as string}</p>
+                        </div>
+                      )}
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                         {SCORING_CATEGORIES.map((cat) => {
                           const comment = fb[cat.commentKey] as string | null;
@@ -714,12 +720,6 @@ export default function DashboardPage() {
                             </div>
                           );
                         })}
-                        {fb.overall_comments && (
-                          <div className="bg-accent-light rounded-lg p-3 md:col-span-2">
-                            <p className="text-xs font-semibold text-accent uppercase mb-1">Overall Notes</p>
-                            <p className="text-sm">{fb.overall_comments as string}</p>
-                          </div>
-                        )}
                         {feedbackImages[fb.id] && feedbackImages[fb.id].length > 0 && (
                           <div className="md:col-span-2">
                             <p className="text-xs font-semibold text-muted uppercase mb-2">Screenshots & Whiteboard Photos</p>
