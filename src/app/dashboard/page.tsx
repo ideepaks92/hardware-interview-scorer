@@ -215,6 +215,7 @@ export default function DashboardPage() {
   const [feedbackImages, setFeedbackImages] = useState<Record<string, FeedbackImage[]>>({});
   const [lightboxImage, setLightboxImage] = useState<string | null>(null);
   const [downloading, setDownloading] = useState<string | null>(null);
+  const [downloadMenu, setDownloadMenu] = useState<string | null>(null);
   const [expandedComments, setExpandedComments] = useState<Set<string>>(new Set());
   const reportRef = useRef<HTMLDivElement>(null);
 
@@ -271,6 +272,13 @@ export default function DashboardPage() {
   useEffect(() => {
     fetchData();
   }, [fetchData]);
+
+  useEffect(() => {
+    if (!downloadMenu) return;
+    const handler = () => setDownloadMenu(null);
+    document.addEventListener("click", handler);
+    return () => document.removeEventListener("click", handler);
+  }, [downloadMenu]);
 
   async function addCandidate(e: React.FormEvent) {
     e.preventDefault();
@@ -344,7 +352,7 @@ export default function DashboardPage() {
       const sectionTops = sections.map((s) => (s as HTMLElement).offsetTop);
 
       const canvas = await html2canvas(el, {
-        scale: 2,
+        scale: 1.5,
         backgroundColor: "#ffffff",
         useCORS: true,
         width: 800,
@@ -399,6 +407,151 @@ export default function DashboardPage() {
     } catch (err) {
       console.error("Download error:", err);
     }
+    setDownloading(null);
+  }
+
+  async function renderHtmlToPng(htmlContent: string, filename: string, width = 900) {
+    const html2canvas = (await import("html2canvas")).default;
+    const el = reportRef.current;
+    if (!el) return;
+    el.innerHTML = htmlContent;
+    el.style.display = "block";
+    const imgEls = el.querySelectorAll("img");
+    if (imgEls.length > 0) {
+      await Promise.all(Array.from(imgEls).map((img) =>
+        img.complete ? Promise.resolve() : new Promise((r) => { img.onload = r; img.onerror = r; })
+      ));
+    }
+    await new Promise((r) => setTimeout(r, 150));
+    const canvas = await html2canvas(el, { scale: 2, backgroundColor: "#ffffff", useCORS: true, width });
+    el.style.display = "none";
+    const link = document.createElement("a");
+    link.download = filename;
+    link.href = canvas.toDataURL("image/png");
+    link.click();
+  }
+
+  function filePrefix(fb: Feedback): string {
+    return `${fb.candidate_name.split(" ")[0]}-${fb.interviewer_name.split(" ")[0]}-${pdfDateStr(fb.interview_date)}`;
+  }
+
+  async function downloadSummaryPng(fb: Feedback) {
+    setDownloading(fb.id);
+    setDownloadMenu(null);
+    try {
+      const overall = weightedOverallFromFeedback(fb);
+      const overallPct = overall ? scoreToPercent(overall) : "--";
+      const recHex = fb.overall_recommendation === "strong_yes" || fb.overall_recommendation === "yes" ? "#16a34a" : fb.overall_recommendation === "maybe" ? "#d97706" : "#dc2626";
+
+      let html = `<div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; color: #1a1a1a; padding: 32px; width: 900px; background: #fff;">`;
+      html += `<div style="border-bottom: 2px solid #2563eb; padding-bottom: 12px; margin-bottom: 16px;">
+        <h1 style="font-size: 20px; font-weight: 700; margin: 0 0 4px 0;">Interview Feedback — Summary</h1>
+        <div style="display: flex; gap: 24px; font-size: 13px; color: #666; margin-top: 6px;">
+          <span><b>Candidate:</b> ${fb.candidate_name}</span><span><b>Position:</b> ${fb.candidate_position || "—"}</span>
+          <span><b>Interviewer:</b> ${fb.interviewer_name}</span><span><b>Date:</b> ${formatShortDate(fb.interview_date)}</span>
+        </div></div>`;
+
+      html += `<div style="display: flex; align-items: center; gap: 16px; margin-bottom: 16px; padding: 10px 14px; background: #f0f9ff; border-radius: 8px;">
+        <div><span style="font-size: 11px; color: #666; text-transform: uppercase; font-weight: 600;">Recommendation</span>
+        <div style="font-size: 16px; font-weight: 700; color: ${recHex};">${recLabel(fb.overall_recommendation)}</div></div>
+        <div style="margin-left: auto; text-align: right;"><span style="font-size: 11px; color: #666; text-transform: uppercase; font-weight: 600;">Weighted Score</span>
+        <div style="font-size: 24px; font-weight: 800; color: #2563eb;">${overallPct}</div></div></div>`;
+
+      html += `<div style="display: flex; background: #f1f5f9; padding: 7px 10px; font-size: 12px; font-weight: 600; border-bottom: 1px solid #e2e8f0; gap: 0;">
+        <div style="width: 180px;">Candidate</div><div style="width: 70px; text-align: center;">Date</div><div style="width: 80px; text-align: center;">Rec</div><div style="width: 70px; text-align: center;">Weighted</div>`;
+      for (const cat of SCORING_CATEGORIES) {
+        html += `<div style="flex: 1; text-align: center; font-size: 10px;"><div>${CATEGORY_SHORT_LABELS[cat.key]}</div><div style="font-weight: 400; color: #999; font-size: 9px;">${Math.round(cat.weight * 100)}%</div></div>`;
+      }
+      html += `</div>`;
+
+      const catScores = SCORING_CATEGORIES.map((cat) => avgScore(fb, cat.subcriteria.map((s) => s.key)));
+      html += `<div style="display: flex; padding: 8px 10px; font-size: 12px; border-bottom: 1px solid #e2e8f0; align-items: center;">
+        <div style="width: 180px;"><div style="font-weight: 600;">${fb.candidate_name}</div><div style="font-size: 10px; color: #999;">${fb.candidate_position || ""}</div></div>
+        <div style="width: 70px; text-align: center; color: #666;">${formatShortDate(fb.interview_date)}</div>
+        <div style="width: 80px; text-align: center;"><span style="background: ${recHex}22; color: ${recHex}; padding: 2px 8px; border-radius: 10px; font-size: 10px; font-weight: 600;">${recLabel(fb.overall_recommendation)}</span></div>
+        <div style="width: 70px; text-align: center;"><span style="background: #dbeafe; color: #2563eb; padding: 2px 8px; border-radius: 4px; font-weight: 700; font-size: 12px;">${overallPct}</span></div>`;
+      for (const score of catScores) {
+        const pct = scoreToPercent(score);
+        const color = score && score >= 4 ? "#16a34a" : score && score >= 3 ? "#d97706" : score ? "#dc2626" : "#999";
+        html += `<div style="flex: 1; text-align: center; font-weight: 600; font-size: 12px; color: ${color};">${pct}</div>`;
+      }
+      html += `</div>`;
+
+      if (fb.overall_comments) {
+        html += `<div style="margin-top: 16px; padding: 10px 14px; background: #eff6ff; border-radius: 6px; border-left: 3px solid #2563eb;">
+          <div style="font-size: 11px; font-weight: 600; text-transform: uppercase; color: #2563eb; margin-bottom: 3px;">Overall Notes</div>
+          <div style="font-size: 12px; line-height: 1.5;">${fb.overall_comments}</div></div>`;
+      }
+
+      const commentCats = SCORING_CATEGORIES.filter((cat) => fb[cat.commentKey]);
+      if (commentCats.length > 0) {
+        html += `<div style="margin-top: 16px; display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">`;
+        for (const cat of commentCats) {
+          html += `<div style="padding: 10px 12px; background: #f8fafc; border-radius: 6px; border: 1px solid #e2e8f0;">
+            <div style="font-size: 10px; font-weight: 600; text-transform: uppercase; color: #666; margin-bottom: 3px;">${cat.label}</div>
+            <div style="font-size: 12px; line-height: 1.4;">${fb[cat.commentKey]}</div></div>`;
+        }
+        html += `</div>`;
+      }
+      html += `</div>`;
+
+      await renderHtmlToPng(html, `Summary-${filePrefix(fb)}.png`);
+    } catch (err) { console.error("Summary PNG error:", err); }
+    setDownloading(null);
+  }
+
+  async function downloadBreakdownPng(fb: Feedback) {
+    setDownloading(fb.id);
+    setDownloadMenu(null);
+    try {
+      let html = `<div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; color: #1a1a1a; padding: 32px; width: 900px; background: #fff;">`;
+      html += `<div style="border-bottom: 2px solid #2563eb; padding-bottom: 12px; margin-bottom: 20px;">
+        <h1 style="font-size: 20px; font-weight: 700; margin: 0 0 4px 0;">Interview Feedback — Detailed Breakdown</h1>
+        <div style="display: flex; gap: 24px; font-size: 13px; color: #666; margin-top: 6px;">
+          <span><b>Candidate:</b> ${fb.candidate_name}</span><span><b>Position:</b> ${fb.candidate_position || "—"}</span>
+          <span><b>Interviewer:</b> ${fb.interviewer_name}</span><span><b>Date:</b> ${formatShortDate(fb.interview_date)}</span>
+        </div></div>`;
+
+      for (const cat of SCORING_CATEGORIES) {
+        const catAvg = avgScore(fb, cat.subcriteria.map((s) => s.key));
+        const pct = scoreToPercent(catAvg);
+        const color = catAvg && catAvg >= 4 ? "#16a34a" : catAvg && catAvg >= 3 ? "#d97706" : catAvg ? "#dc2626" : "#999";
+        const barWidth = catAvg ? Math.round((catAvg / 5) * 100) : 0;
+
+        html += `<div style="margin-bottom: 18px;">`;
+        html += `<div style="display: flex; align-items: center; justify-content: space-between; padding: 8px 12px; background: #1e293b; border-radius: 6px 6px 0 0;">
+          <div style="font-size: 13px; font-weight: 700; color: #fff;">${cat.label}</div>
+          <div style="display: flex; align-items: center; gap: 8px;">
+            <span style="font-size: 10px; color: #94a3b8;">Weight: ${Math.round(cat.weight * 100)}%</span>
+            <span style="font-size: 14px; font-weight: 800; color: ${color === "#999" ? "#94a3b8" : color};">${pct}</span>
+          </div></div>`;
+
+        html += `<div style="background: #f8fafc; border: 1px solid #e2e8f0; border-top: none; border-radius: 0 0 6px 6px; padding: 10px 12px;">`;
+        for (const sc of cat.subcriteria) {
+          const val = fb[sc.key] as number | null;
+          const isNA = val === -1;
+          const display = isNA ? "N/A" : val ? `${val}/5` : "--";
+          const scPct = val && val > 0 ? Math.round((val / 5) * 100) : 0;
+          const scColor = val && val >= 4 ? "#16a34a" : val && val >= 3 ? "#d97706" : val && val > 0 ? "#dc2626" : "#ccc";
+
+          html += `<div style="display: flex; align-items: center; gap: 10px; padding: 5px 0; border-bottom: 1px solid #f1f5f9;">
+            <div style="width: 260px; font-size: 12px; color: #555;">${sc.label}</div>
+            <div style="flex: 1; background: #e2e8f0; border-radius: 4px; height: 8px; overflow: hidden;">
+              <div style="width: ${isNA ? 0 : scPct}%; height: 100%; background: ${scColor}; border-radius: 4px;"></div>
+            </div>
+            <div style="width: 40px; text-align: right; font-size: 12px; font-weight: 600; color: ${isNA ? "#999" : scColor};">${display}</div>
+          </div>`;
+        }
+        html += `</div>`;
+
+        html += `<div style="height: 4px; background: #e2e8f0; border-radius: 0 0 6px 6px; overflow: hidden;">
+          <div style="width: ${barWidth}%; height: 100%; background: ${color};"></div></div>`;
+        html += `</div>`;
+      }
+      html += `</div>`;
+
+      await renderHtmlToPng(html, `Breakdown-${filePrefix(fb)}.png`);
+    } catch (err) { console.error("Breakdown PNG error:", err); }
     setDownloading(null);
   }
 
@@ -749,17 +902,24 @@ export default function DashboardPage() {
                                 <PercentPill score={score} />
                               </td>
                             ))}
-                            <td className="text-center px-2 py-2">
+                            <td className="text-center px-2 py-2 relative">
                               <button
-                                onClick={() => downloadReport(fb)}
+                                onClick={() => setDownloadMenu(downloadMenu === fb.id ? null : fb.id)}
                                 disabled={downloading === fb.id}
-                                title="Download report"
+                                title="Download options"
                                 className="text-muted hover:text-accent transition-colors cursor-pointer disabled:opacity-50"
                               >
-                                <svg className="w-4 h-4 mx-auto" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                                </svg>
+                                {downloading === fb.id
+                                  ? <span className="inline-block w-4 h-4 border-2 border-accent border-t-transparent rounded-full animate-spin" />
+                                  : <svg className="w-4 h-4 mx-auto" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>}
                               </button>
+                              {downloadMenu === fb.id && (
+                                <div className="absolute right-0 top-full mt-1 bg-surface border border-border rounded-lg shadow-lg z-20 py-1 min-w-[160px] text-left">
+                                  <button onClick={() => { setDownloadMenu(null); downloadReport(fb); }} className="w-full px-3 py-1.5 text-xs hover:bg-surface-secondary text-left cursor-pointer">PDF (Full Report)</button>
+                                  <button onClick={() => downloadSummaryPng(fb)} className="w-full px-3 py-1.5 text-xs hover:bg-surface-secondary text-left cursor-pointer">PNG — Summary</button>
+                                  <button onClick={() => downloadBreakdownPng(fb)} className="w-full px-3 py-1.5 text-xs hover:bg-surface-secondary text-left cursor-pointer">PNG — Breakdown</button>
+                                </div>
+                              )}
                             </td>
                           </tr>
                         );
@@ -1124,9 +1284,20 @@ export default function DashboardPage() {
                       </div>
                       <div className="flex items-center gap-2 flex-shrink-0">
                         {!isDraft && (
-                          <button onClick={() => downloadReport(fb)} disabled={downloading === fb.id} title="Download report" className="flex items-center gap-1.5 px-3 py-2 bg-surface-secondary border border-border rounded-lg text-sm font-medium hover:bg-surface-tertiary transition-colors cursor-pointer disabled:opacity-50">
-                            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
-                          </button>
+                          <div className="relative">
+                            <button onClick={() => setDownloadMenu(downloadMenu === fb.id ? null : fb.id)} disabled={downloading === fb.id} title="Download options" className="flex items-center gap-1.5 px-3 py-2 bg-surface-secondary border border-border rounded-lg text-sm font-medium hover:bg-surface-tertiary transition-colors cursor-pointer disabled:opacity-50">
+                              {downloading === fb.id
+                                ? <span className="inline-block w-4 h-4 border-2 border-accent border-t-transparent rounded-full animate-spin" />
+                                : <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>}
+                            </button>
+                            {downloadMenu === fb.id && (
+                              <div className="absolute right-0 top-full mt-1 bg-surface border border-border rounded-lg shadow-lg z-20 py-1 min-w-[160px] text-left">
+                                <button onClick={() => { setDownloadMenu(null); downloadReport(fb); }} className="w-full px-3 py-1.5 text-xs hover:bg-surface-secondary text-left cursor-pointer">PDF (Full Report)</button>
+                                <button onClick={() => downloadSummaryPng(fb)} className="w-full px-3 py-1.5 text-xs hover:bg-surface-secondary text-left cursor-pointer">PNG — Summary</button>
+                                <button onClick={() => downloadBreakdownPng(fb)} className="w-full px-3 py-1.5 text-xs hover:bg-surface-secondary text-left cursor-pointer">PNG — Breakdown</button>
+                              </div>
+                            )}
+                          </div>
                         )}
                         <button onClick={() => router.push(`/feedback?edit=${fb.id}`)} className="flex items-center gap-1.5 px-4 py-2 bg-surface-secondary border border-border rounded-lg text-sm font-medium hover:bg-surface-tertiary transition-colors cursor-pointer">
                           <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" /></svg>
