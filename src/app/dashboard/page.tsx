@@ -208,7 +208,7 @@ export default function DashboardPage() {
   const [newCandidatePosition, setNewCandidatePosition] = useState("");
   const [resumeFile, setResumeFile] = useState<File | null>(null);
   const [activeTab, setActiveTab] = useState<"my-feedback" | "compare" | "all-feedback">(
-    "my-feedback"
+    "all-feedback"
   );
   const [selectedCandidates, setSelectedCandidates] = useState<string[]>([]);
   const [myAllFeedbacks, setMyAllFeedbacks] = useState<Feedback[]>([]);
@@ -506,19 +506,16 @@ export default function DashboardPage() {
     <div className="min-h-screen">
       <header className="bg-surface border-b border-border sticky top-0 z-10">
         <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-lg bg-accent text-white flex items-center justify-center font-bold text-sm">
-              IS
+          <button onClick={() => setActiveTab("all-feedback")} className="flex items-center gap-3 cursor-pointer hover:opacity-80 transition-opacity">
+            <div className="w-9 h-9 rounded-lg bg-accent text-white flex items-center justify-center">
+              <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
             </div>
-            <div>
+            <div className="text-left">
               <h1 className="font-bold text-lg leading-tight">
-                Interview Scorer
+                HW Interview Feedback Notebook
               </h1>
-              <p className="text-xs text-muted">
-                Hardware Engineering Assessment
-              </p>
             </div>
-          </div>
+          </button>
           <div className="flex items-center gap-4">
             <ThemeToggle />
             <div className="text-right">
@@ -539,6 +536,21 @@ export default function DashboardPage() {
         <div className="flex items-center justify-between mb-8 flex-wrap gap-3">
           <div className="flex gap-1 bg-surface-secondary rounded-lg p-1">
             <button
+              onClick={() => setActiveTab("all-feedback")}
+              className={`px-4 py-2 rounded-md text-sm font-medium transition-colors cursor-pointer ${
+                activeTab === "all-feedback"
+                  ? "bg-surface text-foreground shadow-sm"
+                  : "text-muted hover:text-foreground"
+              }`}
+            >
+              All Feedback
+              {myAllFeedbacks.filter((f) => f.status === "draft").length > 0 && (
+                <span className="ml-1.5 inline-flex items-center justify-center w-5 h-5 rounded-full bg-amber-500 text-white text-[10px] font-bold">
+                  {myAllFeedbacks.filter((f) => f.status === "draft").length}
+                </span>
+              )}
+            </button>
+            <button
               onClick={() => setActiveTab("my-feedback")}
               className={`px-4 py-2 rounded-md text-sm font-medium transition-colors cursor-pointer ${
                 activeTab === "my-feedback"
@@ -557,21 +569,6 @@ export default function DashboardPage() {
               }`}
             >
               Compare Candidates
-            </button>
-            <button
-              onClick={() => setActiveTab("all-feedback")}
-              className={`px-4 py-2 rounded-md text-sm font-medium transition-colors cursor-pointer ${
-                activeTab === "all-feedback"
-                  ? "bg-surface text-foreground shadow-sm"
-                  : "text-muted hover:text-foreground"
-              }`}
-            >
-              All Feedback
-              {myAllFeedbacks.filter((f) => f.status === "draft").length > 0 && (
-                <span className="ml-1.5 inline-flex items-center justify-center w-5 h-5 rounded-full bg-amber-500 text-white text-[10px] font-bold">
-                  {myAllFeedbacks.filter((f) => f.status === "draft").length}
-                </span>
-              )}
             </button>
           </div>
 

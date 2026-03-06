@@ -60,15 +60,12 @@ export default function LoginPage() {
 
       <div className="w-full max-w-md">
         <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-accent text-white text-2xl font-bold mb-4">
-            IS
+          <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-accent text-white mb-4">
+            <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
           </div>
           <h1 className="text-3xl font-bold tracking-tight">
-            Interview Scorer
+            HW Interview Feedback Notebook
           </h1>
-          <p className="text-muted mt-2">
-            Hardware Engineering Candidate Assessment
-          </p>
         </div>
 
         <div className="flex gap-1 bg-surface-secondary rounded-lg p-1 mb-6">

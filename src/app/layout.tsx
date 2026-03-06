@@ -13,7 +13,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Interview Scorer — Hardware Engineering",
+  title: "HW Interview Feedback Notebook",
   description:
     "Structured interview scoring system for hardware engineering candidates",
 };
