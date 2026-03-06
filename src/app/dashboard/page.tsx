@@ -314,13 +314,30 @@ export default function DashboardPage() {
       const html2canvas = html2canvasModule.default;
       const jsPDF = jsPDFModule.default;
 
+      let reportImages: FeedbackImage[] = feedbackImages[fb.id] || [];
+      if (reportImages.length === 0) {
+        try {
+          const imgRes = await fetch(`/api/feedback/${fb.id}/images`);
+          if (imgRes.ok) {
+            const imgs = await imgRes.json();
+            if (Array.isArray(imgs)) reportImages = imgs;
+          }
+        } catch { /* skip */ }
+      }
+
       const el = reportRef.current;
       if (!el) return;
 
-      el.innerHTML = buildReportHTML(fb);
+      el.innerHTML = buildReportHTML(fb, reportImages);
       el.style.display = "block";
 
-      await new Promise((r) => setTimeout(r, 100));
+      const imgEls = el.querySelectorAll("img");
+      if (imgEls.length > 0) {
+        await Promise.all(Array.from(imgEls).map((img) =>
+          img.complete ? Promise.resolve() : new Promise((r) => { img.onload = r; img.onerror = r; })
+        ));
+      }
+      await new Promise((r) => setTimeout(r, 150));
 
       const containerHeight = el.scrollHeight;
       const sections = Array.from(el.querySelectorAll("[data-section]"));
@@ -385,7 +402,7 @@ export default function DashboardPage() {
     setDownloading(null);
   }
 
-  function buildReportHTML(fb: Feedback): string {
+  function buildReportHTML(fb: Feedback, images?: FeedbackImage[]): string {
     const overall = weightedOverallFromFeedback(fb);
     const overallPct = overall ? scoreToPercent(overall) : "--";
     const recColorHex = fb.overall_recommendation === "strong_yes" || fb.overall_recommendation === "yes" ? "#16a34a" : fb.overall_recommendation === "maybe" ? "#d97706" : "#dc2626";
@@ -466,12 +483,12 @@ export default function DashboardPage() {
       html += `</div>`;
     }
 
-    const images = feedbackImages[fb.id];
-    if (images && images.length > 0) {
+    const reportImgs = images || feedbackImages[fb.id];
+    if (reportImgs && reportImgs.length > 0) {
       html += `<div data-section style="margin-top: 20px; border-top: 1px solid #e2e8f0; padding-top: 16px;">
         <h3 style="font-size: 14px; font-weight: 700; margin: 0 0 12px 0;">Screenshots &amp; Whiteboard Photos</h3>
         <div style="display: flex; flex-wrap: wrap; gap: 10px;">`;
-      for (const img of images) {
+      for (const img of reportImgs) {
         html += `<div data-section style="width: 48%;">
           <img src="data:${img.mime_type};base64,${img.image_data}" style="width: 100%; border-radius: 6px; border: 1px solid #e2e8f0;" />
           <div style="font-size: 10px; color: #999; margin-top: 2px;">${img.filename}</div>
