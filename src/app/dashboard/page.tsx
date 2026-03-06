@@ -333,9 +333,11 @@ export default function DashboardPage() {
       });
       el.style.display = "none";
 
-      const imgWidth = 210;
-      const pxPerMm = canvas.width / imgWidth;
-      const pageHeightPx = 297 * pxPerMm;
+      const margin = 15;
+      const contentWidth = 210 - 2 * margin;
+      const contentHeight = 297 - 2 * margin;
+      const pxPerMm = canvas.width / contentWidth;
+      const pageHeightPx = contentHeight * pxPerMm;
       const domToCanvas = canvas.height / containerHeight;
       const sectionTopsPx = sectionTops.map((t) => Math.round(t * domToCanvas));
 
@@ -369,7 +371,7 @@ export default function DashboardPage() {
         ctx.fillStyle = "#ffffff";
         ctx.fillRect(0, 0, slice.width, slice.height);
         ctx.drawImage(canvas, 0, srcY, canvas.width, srcH, 0, 0, canvas.width, srcH);
-        pdf.addImage(slice.toDataURL("image/png"), "PNG", 0, 0, imgWidth, srcH / pxPerMm);
+        pdf.addImage(slice.toDataURL("image/png"), "PNG", margin, margin, contentWidth, srcH / pxPerMm);
       }
 
       const candidateFirst = fb.candidate_name.split(" ")[0];
