@@ -19,7 +19,7 @@ export const SCORING_CATEGORIES: CategoryConfig[] = [
   {
     key: "technical_expertise",
     label: "Technical Expertise",
-    weight: 0.25,
+    weight: 0.2,
     subcriteria: [
       {
         key: "system_level_thinking",
@@ -87,7 +87,7 @@ export const SCORING_CATEGORIES: CategoryConfig[] = [
   {
     key: "design_analysis",
     label: "Design Analysis Skills",
-    weight: 0.15,
+    weight: 0.1,
     subcriteria: [
       {
         key: "analytical_judgment",
@@ -131,7 +131,7 @@ export const SCORING_CATEGORIES: CategoryConfig[] = [
   {
     key: "cultural_fit",
     label: "Cultural Fit",
-    weight: 0.15,
+    weight: 0.2,
     subcriteria: [
       {
         key: "collaboration_respect",
@@ -230,7 +230,7 @@ export const SCORING_CATEGORIES: CategoryConfig[] = [
   },
   {
     key: "working_mindset",
-    label: "Working Mindset",
+    label: "Startup Mindset",
     weight: 0.15,
     subcriteria: [
       {
@@ -307,7 +307,7 @@ export const SCORING_CATEGORIES: CategoryConfig[] = [
   {
     key: "cross_functional",
     label: "Cross-Functional Focus",
-    weight: 0.1,
+    weight: 0.15,
     subcriteria: [
       {
         key: "cross_functional_awareness",
@@ -339,6 +339,21 @@ export const SCORING_CATEGORIES: CategoryConfig[] = [
 ];
 
 export const NA_SCORE = -1;
+
+export const CATEGORY_SHORT_LABELS: Record<string, string> = {
+  technical_expertise: "Tech",
+  design_analysis: "Analysis",
+  cultural_fit: "Cultural",
+  communication: "Comm",
+  working_mindset: "Startup",
+  intuition: "Intuition",
+  cross_functional: "X-func",
+};
+
+export function scoreToPercent(score: number | null): string {
+  if (score === null || score <= 0) return "--";
+  return `${Math.round((score / 5) * 100)}%`;
+}
 
 export function computeCategoryAverage(
   feedback: Record<string, number | string | null>,
