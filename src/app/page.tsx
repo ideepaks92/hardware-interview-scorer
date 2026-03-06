@@ -25,8 +25,14 @@ export default function LoginPage() {
       });
 
       if (!res.ok) {
-        const data = await res.json();
-        throw new Error(data.error || "Login failed");
+        let msg = "Login failed";
+        try {
+          const data = await res.json();
+          msg = data.error || msg;
+        } catch {
+          msg = `Server error (${res.status})`;
+        }
+        throw new Error(msg);
       }
 
       const interviewer = await res.json();

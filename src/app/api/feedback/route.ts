@@ -9,88 +9,104 @@ const SCORE_KEYS = SCORING_CATEGORIES.flatMap((cat) =>
 const COMMENT_KEYS = SCORING_CATEGORIES.map((cat) => cat.commentKey);
 
 export async function GET(req: NextRequest) {
-  const { searchParams } = new URL(req.url);
-  const interviewerId = searchParams.get("interviewer_id");
-  const candidateId = searchParams.get("candidate_id");
+  try {
+    const { searchParams } = new URL(req.url);
+    const interviewerId = searchParams.get("interviewer_id");
+    const candidateId = searchParams.get("candidate_id");
 
-  const db = await getDb();
+    const db = await getDb();
 
-  let query = `
-    SELECT f.*, c.name as candidate_name, c.position as candidate_position,
-           i.name as interviewer_name, i.role as interviewer_role
-    FROM feedback f
-    JOIN candidates c ON f.candidate_id = c.id
-    JOIN interviewers i ON f.interviewer_id = i.id
-  `;
-  const conditions: string[] = [];
-  const params: (string | null)[] = [];
+    let query = `
+      SELECT f.*, c.name as candidate_name, c.position as candidate_position,
+             i.name as interviewer_name, i.role as interviewer_role
+      FROM feedback f
+      JOIN candidates c ON f.candidate_id = c.id
+      JOIN interviewers i ON f.interviewer_id = i.id
+    `;
+    const conditions: string[] = [];
+    const params: (string | null)[] = [];
 
-  if (interviewerId) {
-    conditions.push("f.interviewer_id = ?");
-    params.push(interviewerId);
+    if (interviewerId) {
+      conditions.push("f.interviewer_id = ?");
+      params.push(interviewerId);
+    }
+    if (candidateId) {
+      conditions.push("f.candidate_id = ?");
+      params.push(candidateId);
+    }
+    if (conditions.length > 0) {
+      query += " WHERE " + conditions.join(" AND ");
+    }
+    query += " ORDER BY f.created_at DESC";
+
+    const result = await db.execute({ sql: query, args: params });
+    return NextResponse.json(result.rows);
+  } catch (err) {
+    console.error("Feedback GET error:", err);
+    return NextResponse.json(
+      { error: err instanceof Error ? err.message : "Internal server error" },
+      { status: 500 }
+    );
   }
-  if (candidateId) {
-    conditions.push("f.candidate_id = ?");
-    params.push(candidateId);
-  }
-  if (conditions.length > 0) {
-    query += " WHERE " + conditions.join(" AND ");
-  }
-  query += " ORDER BY f.created_at DESC";
-
-  const result = await db.execute({ sql: query, args: params });
-  return NextResponse.json(result.rows);
 }
 
 export async function POST(req: NextRequest) {
-  const body = await req.json();
+  try {
+    const body = await req.json();
 
-  if (!body.interviewer_id || !body.candidate_id) {
+    if (!body.interviewer_id || !body.candidate_id) {
+      return NextResponse.json(
+        { error: "Interviewer and candidate are required" },
+        { status: 400 }
+      );
+    }
+
+    const id = uuidv4();
+    const db = await getDb();
+
+    const allColumns = [
+      "id",
+      "interviewer_id",
+      "candidate_id",
+      "interview_date",
+      "problem_statements",
+      ...SCORE_KEYS,
+      ...COMMENT_KEYS,
+      "overall_recommendation",
+      "overall_comments",
+    ];
+
+    const placeholders = allColumns.map(() => "?").join(", ");
+    const columnList = allColumns.join(", ");
+
+    const values = [
+      id,
+      body.interviewer_id,
+      body.candidate_id,
+      body.interview_date || new Date().toISOString().split("T")[0],
+      body.problem_statements || null,
+      ...SCORE_KEYS.map((k) => body[k] ?? null),
+      ...COMMENT_KEYS.map((k) => body[k] || null),
+      body.overall_recommendation || null,
+      body.overall_comments || null,
+    ];
+
+    await db.execute({
+      sql: `INSERT INTO feedback (${columnList}) VALUES (${placeholders})`,
+      args: values,
+    });
+
+    const result = await db.execute({
+      sql: "SELECT * FROM feedback WHERE id = ?",
+      args: [id],
+    });
+
+    return NextResponse.json(result.rows[0]);
+  } catch (err) {
+    console.error("Feedback POST error:", err);
     return NextResponse.json(
-      { error: "Interviewer and candidate are required" },
-      { status: 400 }
+      { error: err instanceof Error ? err.message : "Internal server error" },
+      { status: 500 }
     );
   }
-
-  const id = uuidv4();
-  const db = await getDb();
-
-  const allColumns = [
-    "id",
-    "interviewer_id",
-    "candidate_id",
-    "interview_date",
-    "problem_statements",
-    ...SCORE_KEYS,
-    ...COMMENT_KEYS,
-    "overall_recommendation",
-    "overall_comments",
-  ];
-
-  const placeholders = allColumns.map(() => "?").join(", ");
-  const columnList = allColumns.join(", ");
-
-  const values = [
-    id,
-    body.interviewer_id,
-    body.candidate_id,
-    body.interview_date || new Date().toISOString().split("T")[0],
-    body.problem_statements || null,
-    ...SCORE_KEYS.map((k) => body[k] ?? null),
-    ...COMMENT_KEYS.map((k) => body[k] || null),
-    body.overall_recommendation || null,
-    body.overall_comments || null,
-  ];
-
-  await db.execute({
-    sql: `INSERT INTO feedback (${columnList}) VALUES (${placeholders})`,
-    args: values,
-  });
-
-  const result = await db.execute({
-    sql: "SELECT * FROM feedback WHERE id = ?",
-    args: [id],
-  });
-
-  return NextResponse.json(result.rows[0]);
 }
