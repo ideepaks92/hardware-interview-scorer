@@ -94,7 +94,9 @@ async function initializeDb(db: Client) {
       overall_recommendation TEXT,
       overall_comments TEXT,
 
+      status TEXT DEFAULT 'submitted',
       created_at TEXT DEFAULT (datetime('now')),
+      updated_at TEXT DEFAULT (datetime('now')),
 
       FOREIGN KEY (interviewer_id) REFERENCES interviewers(id),
       FOREIGN KEY (candidate_id) REFERENCES candidates(id)
@@ -147,6 +149,18 @@ async function migrate(db: Client) {
   if (!existing.has("problem_statements")) {
     await db.execute(
       "ALTER TABLE feedback ADD COLUMN problem_statements TEXT"
+    );
+  }
+
+  if (!existing.has("status")) {
+    await db.execute(
+      "ALTER TABLE feedback ADD COLUMN status TEXT DEFAULT 'submitted'"
+    );
+  }
+
+  if (!existing.has("updated_at")) {
+    await db.execute(
+      "ALTER TABLE feedback ADD COLUMN updated_at TEXT DEFAULT (datetime('now'))"
     );
   }
 

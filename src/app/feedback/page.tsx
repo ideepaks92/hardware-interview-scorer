@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect, useState, useRef } from "react";
-import { useRouter } from "next/navigation";
+import { useEffect, useState, useRef, useCallback, Suspense } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { SCORING_CATEGORIES, NA_SCORE } from "@/lib/scoring";
 import { PROBLEM_STATEMENTS } from "@/lib/problems";
 import ThemeToggle from "@/components/ThemeToggle";
@@ -27,8 +27,15 @@ const RECOMMENDATION_OPTIONS = [
   { value: "strong_no", label: "Strong No", color: "bg-red-700" },
 ];
 
-export default function FeedbackPage() {
+const ALL_SCORE_KEYS = SCORING_CATEGORIES.flatMap((cat) =>
+  cat.subcriteria.map((sc) => sc.key)
+);
+
+function FeedbackForm() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const editId = searchParams.get("edit");
+
   const [interviewer, setInterviewer] = useState<Interviewer | null>(null);
   const [candidates, setCandidates] = useState<Candidate[]>([]);
   const [selectedCandidate, setSelectedCandidate] = useState("");
@@ -46,9 +53,56 @@ export default function FeedbackPage() {
   const [pendingImages, setPendingImages] = useState<File[]>([]);
   const [imagePreviews, setImagePreviews] = useState<string[]>([]);
   const [submitting, setSubmitting] = useState(false);
+  const [savingDraft, setSavingDraft] = useState(false);
   const [success, setSuccess] = useState(false);
-  const [feedbackId, setFeedbackId] = useState<string | null>(null);
+  const [successMessage, setSuccessMessage] = useState("Feedback Submitted");
   const [uploadingImages, setUploadingImages] = useState(false);
+  const [validationErrors, setValidationErrors] = useState<string[]>([]);
+
+  const loadExistingFeedback = useCallback(
+    async (id: string) => {
+      try {
+        const res = await fetch(
+          `/api/feedback?interviewer_id=&include_drafts=true`
+        );
+        if (!res.ok) return;
+        const all = await res.json();
+        const fb = all.find(
+          (f: Record<string, unknown>) => f.id === id
+        );
+        if (!fb) return;
+
+        setSelectedCandidate(fb.candidate_id || "");
+        setInterviewDate(fb.interview_date || new Date().toISOString().split("T")[0]);
+
+        if (fb.problem_statements) {
+          try {
+            setSelectedProblems(JSON.parse(fb.problem_statements as string));
+          } catch { /* skip */ }
+        }
+
+        const loadedScores: Record<string, number> = {};
+        ALL_SCORE_KEYS.forEach((key) => {
+          if (fb[key] !== null && fb[key] !== undefined) {
+            loadedScores[key] = fb[key] as number;
+          }
+        });
+        setScores(loadedScores);
+
+        const loadedComments: Record<string, string> = {};
+        SCORING_CATEGORIES.forEach((cat) => {
+          if (fb[cat.commentKey]) {
+            loadedComments[cat.commentKey] = fb[cat.commentKey] as string;
+          }
+        });
+        setComments(loadedComments);
+
+        setRecommendation((fb.overall_recommendation as string) || "");
+        setOverallComments((fb.overall_comments as string) || "");
+      } catch { /* skip */ }
+    },
+    []
+  );
 
   useEffect(() => {
     const stored = localStorage.getItem("interviewer");
@@ -62,6 +116,12 @@ export default function FeedbackPage() {
       .then((r) => r.json())
       .then(setCandidates);
   }, [router]);
+
+  useEffect(() => {
+    if (editId) {
+      loadExistingFeedback(editId);
+    }
+  }, [editId, loadExistingFeedback]);
 
   useEffect(() => {
     function handleClickOutside(e: MouseEvent) {
@@ -84,6 +144,7 @@ export default function FeedbackPage() {
 
   function setScore(key: string, value: number) {
     setScores((prev) => ({ ...prev, [key]: value }));
+    setValidationErrors([]);
   }
 
   function clearScore(key: string) {
@@ -95,6 +156,7 @@ export default function FeedbackPage() {
       }
       return { ...prev, [key]: NA_SCORE };
     });
+    setValidationErrors([]);
   }
 
   function setComment(key: string, value: string) {
@@ -116,20 +178,45 @@ export default function FeedbackPage() {
     setImagePreviews((prev) => prev.filter((_, i) => i !== index));
   }
 
-  async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault();
-    if (!interviewer || !selectedCandidate) return;
-    setSubmitting(true);
+  function validate(): string[] {
+    const errors: string[] = [];
 
+    const unscored = ALL_SCORE_KEYS.filter(
+      (key) => scores[key] === undefined
+    );
+    if (unscored.length > 0) {
+      const labels = unscored.map((key) => {
+        for (const cat of SCORING_CATEGORIES) {
+          const sc = cat.subcriteria.find((s) => s.key === key);
+          if (sc) return sc.label;
+        }
+        return key;
+      });
+      errors.push(
+        `Rate or mark N/A: ${labels.slice(0, 3).join(", ")}${labels.length > 3 ? ` and ${labels.length - 3} more` : ""}`
+      );
+    }
+
+    if (!recommendation) {
+      errors.push("Overall recommendation is required");
+    }
+
+    return errors;
+  }
+
+  function buildBody(status: string): Record<string, string | number | null> {
     const body: Record<string, string | number | null> = {
-      interviewer_id: interviewer.id,
+      interviewer_id: interviewer!.id,
       candidate_id: selectedCandidate,
       interview_date: interviewDate,
       problem_statements:
         selectedProblems.length > 0 ? JSON.stringify(selectedProblems) : null,
       overall_recommendation: recommendation || null,
       overall_comments: overallComments || null,
+      status,
     };
+
+    if (editId) body.id = editId;
 
     SCORING_CATEGORIES.forEach((cat) => {
       cat.subcriteria.forEach((sc) => {
@@ -139,32 +226,72 @@ export default function FeedbackPage() {
       body[cat.commentKey] = comments[cat.commentKey] || null;
     });
 
-    const res = await fetch("/api/feedback", {
+    return body;
+  }
+
+  async function uploadImages(fbId: string) {
+    if (pendingImages.length === 0) return;
+    setUploadingImages(true);
+    const formData = new FormData();
+    pendingImages.forEach((f) => formData.append("images", f));
+    await fetch(`/api/feedback/${fbId}/images`, {
       method: "POST",
+      body: formData,
+    });
+    setUploadingImages(false);
+  }
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    if (!interviewer || !selectedCandidate) return;
+
+    const errors = validate();
+    if (errors.length > 0) {
+      setValidationErrors(errors);
+      return;
+    }
+
+    setSubmitting(true);
+    const body = buildBody("submitted");
+    const method = editId ? "PUT" : "POST";
+
+    const res = await fetch("/api/feedback", {
+      method,
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(body),
     });
 
     if (res.ok) {
       const feedback = await res.json();
-      const fbId = feedback.id;
-      setFeedbackId(fbId);
-
-      if (pendingImages.length > 0) {
-        setUploadingImages(true);
-        const formData = new FormData();
-        pendingImages.forEach((f) => formData.append("images", f));
-        await fetch(`/api/feedback/${fbId}/images`, {
-          method: "POST",
-          body: formData,
-        });
-        setUploadingImages(false);
-      }
-
+      await uploadImages(feedback.id);
+      setSuccessMessage(editId ? "Feedback Updated" : "Feedback Submitted");
       setSuccess(true);
       setTimeout(() => router.push("/dashboard"), 1500);
     }
     setSubmitting(false);
+  }
+
+  async function handleSaveDraft() {
+    if (!interviewer || !selectedCandidate) return;
+    setSavingDraft(true);
+
+    const body = buildBody("draft");
+    const method = editId ? "PUT" : "POST";
+
+    const res = await fetch("/api/feedback", {
+      method,
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    });
+
+    if (res.ok) {
+      const feedback = await res.json();
+      await uploadImages(feedback.id);
+      setSuccessMessage("Draft Saved");
+      setSuccess(true);
+      setTimeout(() => router.push("/dashboard"), 1500);
+    }
+    setSavingDraft(false);
   }
 
   if (!interviewer) return null;
@@ -189,7 +316,7 @@ export default function FeedbackPage() {
             </svg>
           </div>
           <h2 className="text-2xl font-bold mb-2">
-            {uploadingImages ? "Uploading images..." : "Feedback Submitted"}
+            {uploadingImages ? "Uploading images..." : successMessage}
           </h2>
           <p className="text-muted">
             {uploadingImages
@@ -224,7 +351,9 @@ export default function FeedbackPage() {
                 />
               </svg>
             </button>
-            <h1 className="font-bold text-lg">New Interview Feedback</h1>
+            <h1 className="font-bold text-lg">
+              {editId ? "Edit Feedback" : "New Interview Feedback"}
+            </h1>
           </div>
           <div className="flex items-center gap-4">
             <ThemeToggle />
@@ -246,7 +375,7 @@ export default function FeedbackPage() {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
               <label className="block text-sm font-medium mb-1.5">
-                Candidate
+                Candidate <span className="text-danger">*</span>
               </label>
               <select
                 value={selectedCandidate}
@@ -523,12 +652,14 @@ export default function FeedbackPage() {
             <div className="space-y-6">
               {cat.subcriteria.map((sc) => {
                 const isNA = scores[sc.key] === NA_SCORE;
+                const hasScore = scores[sc.key] !== undefined;
+                const showMissing = validationErrors.length > 0 && !hasScore;
                 return (
                   <div key={sc.key}>
                     <div className="flex items-start justify-between mb-2">
                       <div>
-                        <label className="block text-sm font-medium">
-                          {sc.label}
+                        <label className={`block text-sm font-medium ${showMissing ? "text-danger" : ""}`}>
+                          {sc.label} <span className="text-danger">*</span>
                         </label>
                         <div className="flex flex-wrap gap-1.5 mt-1">
                           {sc.doordashValues.map((v) => (
@@ -559,7 +690,7 @@ export default function FeedbackPage() {
                         Not assessed in this interview
                       </div>
                     ) : (
-                      <div className="flex gap-2">
+                      <div className={`flex gap-2 ${showMissing ? "ring-2 ring-danger/50 rounded-lg p-0.5" : ""}`}>
                         {[1, 2, 3, 4, 5].map((val) => (
                           <button
                             key={val}
@@ -651,14 +782,16 @@ export default function FeedbackPage() {
 
         {/* Overall recommendation */}
         <div className="bg-surface border border-border rounded-2xl p-6">
-          <h2 className="font-bold text-lg mb-4">Overall Recommendation</h2>
+          <h2 className="font-bold text-lg mb-4">
+            Overall Recommendation <span className="text-danger">*</span>
+          </h2>
 
-          <div className="flex flex-wrap gap-2 mb-4">
+          <div className={`flex flex-wrap gap-2 mb-4 ${validationErrors.length > 0 && !recommendation ? "ring-2 ring-danger/50 rounded-lg p-1" : ""}`}>
             {RECOMMENDATION_OPTIONS.map((opt) => (
               <button
                 key={opt.value}
                 type="button"
-                onClick={() => setRecommendation(opt.value)}
+                onClick={() => { setRecommendation(opt.value); setValidationErrors([]); }}
                 className={`px-5 py-2.5 rounded-lg text-sm font-semibold border transition-all cursor-pointer ${
                   recommendation === opt.value
                     ? `${opt.color} text-white border-transparent shadow-sm`
@@ -684,28 +817,56 @@ export default function FeedbackPage() {
           </div>
         </div>
 
-        {/* Submit */}
+        {/* Validation errors */}
+        {validationErrors.length > 0 && (
+          <div className="bg-score-low-bg border border-danger/30 rounded-xl p-4">
+            <p className="text-sm font-semibold text-danger mb-1">Please fix the following:</p>
+            <ul className="text-sm text-danger space-y-0.5">
+              {validationErrors.map((err, i) => (
+                <li key={i}>- {err}</li>
+              ))}
+            </ul>
+          </div>
+        )}
+
+        {/* Submit / Draft / Cancel */}
         <div className="flex gap-3">
           <button
             type="submit"
-            disabled={submitting || !selectedCandidate}
+            disabled={submitting || savingDraft || !selectedCandidate}
             className="flex-1 py-3.5 bg-accent text-white font-semibold rounded-xl hover:bg-accent-hover transition-colors disabled:opacity-50 cursor-pointer"
           >
             {submitting
-              ? pendingImages.length > 0
-                ? "Submitting with images..."
-                : "Submitting..."
-              : `Submit Feedback${pendingImages.length > 0 ? ` (${pendingImages.length} image${pendingImages.length > 1 ? "s" : ""})` : ""}`}
+              ? "Submitting..."
+              : editId
+                ? "Update Feedback"
+                : `Submit Feedback${pendingImages.length > 0 ? ` (${pendingImages.length} image${pendingImages.length > 1 ? "s" : ""})` : ""}`}
+          </button>
+          <button
+            type="button"
+            disabled={submitting || savingDraft || !selectedCandidate}
+            onClick={handleSaveDraft}
+            className="px-6 py-3.5 bg-surface-secondary border border-border font-semibold rounded-xl hover:bg-surface-tertiary transition-colors disabled:opacity-50 cursor-pointer"
+          >
+            {savingDraft ? "Saving..." : "Save Draft"}
           </button>
           <button
             type="button"
             onClick={() => router.push("/dashboard")}
-            className="px-8 py-3.5 bg-surface-secondary font-semibold rounded-xl hover:bg-surface-tertiary transition-colors cursor-pointer"
+            className="px-6 py-3.5 bg-surface-secondary font-semibold rounded-xl hover:bg-surface-tertiary transition-colors cursor-pointer"
           >
             Cancel
           </button>
         </div>
       </form>
     </div>
+  );
+}
+
+export default function FeedbackPage() {
+  return (
+    <Suspense>
+      <FeedbackForm />
+    </Suspense>
   );
 }

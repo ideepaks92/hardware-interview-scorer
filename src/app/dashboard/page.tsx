@@ -28,7 +28,10 @@ interface Feedback {
   interviewer_name: string;
   interviewer_role: string;
   interview_date: string;
-  [key: string]: string | number | null;
+  status?: string | null;
+  created_at?: string | null;
+  updated_at?: string | null;
+  [key: string]: string | number | null | undefined;
 }
 
 interface FeedbackImage {
@@ -93,10 +96,11 @@ export default function DashboardPage() {
   const [newCandidateName, setNewCandidateName] = useState("");
   const [newCandidatePosition, setNewCandidatePosition] = useState("");
   const [resumeFile, setResumeFile] = useState<File | null>(null);
-  const [activeTab, setActiveTab] = useState<"my-feedback" | "compare">(
+  const [activeTab, setActiveTab] = useState<"my-feedback" | "compare" | "all-feedback">(
     "my-feedback"
   );
   const [selectedCandidates, setSelectedCandidates] = useState<string[]>([]);
+  const [myAllFeedbacks, setMyAllFeedbacks] = useState<Feedback[]>([]);
   const [feedbackImages, setFeedbackImages] = useState<Record<string, FeedbackImage[]>>({});
   const [lightboxImage, setLightboxImage] = useState<string | null>(null);
 
@@ -111,16 +115,19 @@ export default function DashboardPage() {
 
   const fetchData = useCallback(async () => {
     if (!interviewer) return;
-    const [candRes, fbRes, allFbRes] = await Promise.all([
+    const [candRes, fbRes, allFbRes, myAllFbRes] = await Promise.all([
       fetch("/api/candidates"),
       fetch(`/api/feedback?interviewer_id=${interviewer.id}`),
       fetch("/api/feedback"),
+      fetch(`/api/feedback?interviewer_id=${interviewer.id}&include_drafts=true`),
     ]);
     setCandidates(await candRes.json());
     const myFb = await fbRes.json();
     const allFb = await allFbRes.json();
+    const myAllFb = await myAllFbRes.json();
     setFeedbacks(myFb);
     setAllFeedbacks(allFb);
+    setMyAllFeedbacks(myAllFb);
 
     const allIds = [...new Set([...myFb, ...allFb].map((f: Feedback) => f.id))];
     const imageMap: Record<string, FeedbackImage[]> = {};
@@ -229,6 +236,21 @@ export default function DashboardPage() {
               }`}
             >
               Compare Candidates
+            </button>
+            <button
+              onClick={() => setActiveTab("all-feedback")}
+              className={`px-4 py-2 rounded-md text-sm font-medium transition-colors cursor-pointer ${
+                activeTab === "all-feedback"
+                  ? "bg-surface text-foreground shadow-sm"
+                  : "text-muted hover:text-foreground"
+              }`}
+            >
+              All Feedback
+              {myAllFeedbacks.filter((f) => f.status === "draft").length > 0 && (
+                <span className="ml-1.5 inline-flex items-center justify-center w-5 h-5 rounded-full bg-amber-500 text-white text-[10px] font-bold">
+                  {myAllFeedbacks.filter((f) => f.status === "draft").length}
+                </span>
+              )}
             </button>
           </div>
 
@@ -797,6 +819,125 @@ export default function DashboardPage() {
                   })}
                 </div>
               </div>
+            )}
+          </div>
+        )}
+
+        {activeTab === "all-feedback" && (
+          <div className="space-y-4">
+            {myAllFeedbacks.length === 0 ? (
+              <div className="bg-surface border border-border rounded-2xl p-12 text-center">
+                <p className="text-muted text-lg mb-2">No feedback yet</p>
+                <p className="text-sm text-muted">
+                  Click &quot;+ New Feedback&quot; to get started.
+                </p>
+              </div>
+            ) : (
+              myAllFeedbacks.map((fb) => {
+                const isDraft = fb.status === "draft";
+                const overall = weightedOverallFromFeedback(fb);
+                const problems = parseProblemTags(fb.problem_statements);
+                const ts = fb.updated_at || fb.created_at;
+                const dateStr = ts
+                  ? new Date(ts + (ts.includes("Z") ? "" : "Z")).toLocaleString(undefined, {
+                      month: "short",
+                      day: "numeric",
+                      year: "numeric",
+                      hour: "numeric",
+                      minute: "2-digit",
+                    })
+                  : fb.interview_date;
+
+                return (
+                  <div
+                    key={fb.id}
+                    className={`bg-surface border rounded-2xl p-5 ${isDraft ? "border-amber-500/50" : "border-border"}`}
+                  >
+                    <div className="flex items-start justify-between gap-4">
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 mb-1 flex-wrap">
+                          <span className="font-semibold text-base">
+                            {fb.candidate_name}
+                          </span>
+                          {fb.candidate_position && (
+                            <span className="text-sm text-muted">
+                              — {fb.candidate_position}
+                            </span>
+                          )}
+                          {isDraft ? (
+                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-amber-500/15 text-amber-600 dark:text-amber-400 text-xs font-semibold">
+                              <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+                              </svg>
+                              Draft
+                            </span>
+                          ) : (
+                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-score-high-bg text-score-high-text text-xs font-semibold">
+                              <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                              </svg>
+                              Submitted
+                            </span>
+                          )}
+                          {typeof fb.overall_recommendation === "string" && (
+                            <span
+                              className={`inline-block px-2.5 py-0.5 rounded-full text-xs font-semibold ${
+                                fb.overall_recommendation === "strong_yes" || fb.overall_recommendation === "yes"
+                                  ? "bg-score-high-bg text-score-high-text"
+                                  : fb.overall_recommendation === "maybe"
+                                    ? "bg-score-mid-bg text-score-mid-text"
+                                    : fb.overall_recommendation === "no" || fb.overall_recommendation === "strong_no"
+                                      ? "bg-score-low-bg text-score-low-text"
+                                      : "bg-surface-secondary text-muted"
+                              }`}
+                            >
+                              {fb.overall_recommendation.replace("_", " ").toUpperCase()}
+                            </span>
+                          )}
+                        </div>
+
+                        <div className="flex items-center gap-3 text-sm text-muted mt-1">
+                          <span>Interview: {fb.interview_date}</span>
+                          <span className="text-border">|</span>
+                          <span>{isDraft ? "Last saved" : "Submitted"}: {dateStr}</span>
+                        </div>
+
+                        {problems.length > 0 && (
+                          <div className="flex flex-wrap gap-1.5 mt-2">
+                            {problems.map((t) => (
+                              <span
+                                key={t}
+                                className="inline-block px-2 py-0.5 rounded bg-accent-light text-accent text-xs font-medium"
+                              >
+                                {t}
+                              </span>
+                            ))}
+                          </div>
+                        )}
+
+                        {overall !== null && (
+                          <div className="flex items-center gap-2 mt-2">
+                            <span className="text-xs text-muted">Weighted score:</span>
+                            <span className="inline-flex items-center justify-center w-8 h-8 rounded-full bg-accent-light text-accent text-sm font-bold">
+                              {overall}
+                            </span>
+                          </div>
+                        )}
+                      </div>
+
+                      <button
+                        onClick={() => router.push(`/feedback?edit=${fb.id}`)}
+                        className="flex items-center gap-1.5 px-4 py-2 bg-surface-secondary border border-border rounded-lg text-sm font-medium hover:bg-surface-tertiary transition-colors cursor-pointer flex-shrink-0"
+                      >
+                        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+                        </svg>
+                        {isDraft ? "Continue" : "Edit"}
+                      </button>
+                    </div>
+                  </div>
+                );
+              })
             )}
           </div>
         )}

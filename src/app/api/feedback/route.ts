@@ -13,6 +13,7 @@ export async function GET(req: NextRequest) {
     const { searchParams } = new URL(req.url);
     const interviewerId = searchParams.get("interviewer_id");
     const candidateId = searchParams.get("candidate_id");
+    const includeDrafts = searchParams.get("include_drafts") === "true";
 
     const db = await getDb();
 
@@ -26,6 +27,9 @@ export async function GET(req: NextRequest) {
     const conditions: string[] = [];
     const params: (string | null)[] = [];
 
+    if (!includeDrafts) {
+      conditions.push("(f.status = 'submitted' OR f.status IS NULL)");
+    }
     if (interviewerId) {
       conditions.push("f.interviewer_id = ?");
       params.push(interviewerId);
@@ -63,6 +67,7 @@ export async function POST(req: NextRequest) {
 
     const id = uuidv4();
     const db = await getDb();
+    const status = body.status || "submitted";
 
     const allColumns = [
       "id",
@@ -74,6 +79,7 @@ export async function POST(req: NextRequest) {
       ...COMMENT_KEYS,
       "overall_recommendation",
       "overall_comments",
+      "status",
     ];
 
     const placeholders = allColumns.map(() => "?").join(", ");
@@ -89,6 +95,7 @@ export async function POST(req: NextRequest) {
       ...COMMENT_KEYS.map((k) => body[k] || null),
       body.overall_recommendation || null,
       body.overall_comments || null,
+      status,
     ];
 
     await db.execute({
@@ -104,6 +111,67 @@ export async function POST(req: NextRequest) {
     return NextResponse.json(result.rows[0]);
   } catch (err) {
     console.error("Feedback POST error:", err);
+    return NextResponse.json(
+      { error: err instanceof Error ? err.message : "Internal server error" },
+      { status: 500 }
+    );
+  }
+}
+
+export async function PUT(req: NextRequest) {
+  try {
+    const body = await req.json();
+
+    if (!body.id) {
+      return NextResponse.json(
+        { error: "Feedback id is required" },
+        { status: 400 }
+      );
+    }
+
+    const db = await getDb();
+    const status = body.status || "submitted";
+
+    const updateColumns = [
+      "candidate_id",
+      "interview_date",
+      "problem_statements",
+      ...SCORE_KEYS,
+      ...COMMENT_KEYS,
+      "overall_recommendation",
+      "overall_comments",
+      "status",
+      "updated_at",
+    ];
+
+    const setClauses = updateColumns.map((c) => `${c} = ?`).join(", ");
+
+    const values = [
+      body.candidate_id,
+      body.interview_date || new Date().toISOString().split("T")[0],
+      body.problem_statements || null,
+      ...SCORE_KEYS.map((k) => body[k] ?? null),
+      ...COMMENT_KEYS.map((k) => body[k] || null),
+      body.overall_recommendation || null,
+      body.overall_comments || null,
+      status,
+      new Date().toISOString().replace("T", " ").slice(0, 19),
+      body.id,
+    ];
+
+    await db.execute({
+      sql: `UPDATE feedback SET ${setClauses} WHERE id = ?`,
+      args: values,
+    });
+
+    const result = await db.execute({
+      sql: "SELECT * FROM feedback WHERE id = ?",
+      args: [body.id],
+    });
+
+    return NextResponse.json(result.rows[0]);
+  } catch (err) {
+    console.error("Feedback PUT error:", err);
     return NextResponse.json(
       { error: err instanceof Error ? err.message : "Internal server error" },
       { status: 500 }
