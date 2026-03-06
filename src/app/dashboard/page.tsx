@@ -599,6 +599,26 @@ export default function DashboardPage() {
         scale: 2,
         backgroundColor: "#ffffff",
         useCORS: true,
+        onclone: (clonedDoc) => {
+          const clonedEl = clonedDoc.querySelector("[data-comparison-ref]");
+          if (!clonedEl) return;
+          clonedEl.querySelectorAll("canvas").forEach((origCanvas) => {
+            const srcCanvas = comparisonRef.current?.querySelector("canvas");
+            if (!srcCanvas) return;
+            const img = clonedDoc.createElement("img");
+            img.src = srcCanvas.toDataURL("image/png");
+            img.style.width = origCanvas.style.width || `${origCanvas.width}px`;
+            img.style.height = origCanvas.style.height || `${origCanvas.height}px`;
+            origCanvas.parentNode?.replaceChild(img, origCanvas);
+          });
+          clonedEl.querySelectorAll("*").forEach((el) => {
+            const htmlEl = el as HTMLElement;
+            const computed = window.getComputedStyle(htmlEl);
+            htmlEl.style.color = computed.color;
+            htmlEl.style.backgroundColor = computed.backgroundColor;
+            htmlEl.style.borderColor = computed.borderColor;
+          });
+        },
       });
       const link = document.createElement("a");
       const names = comparisonCandidates.map((c) => c.name.split(" ")[0]).join("-vs-");
@@ -1094,7 +1114,7 @@ export default function DashboardPage() {
               </div>
             )}
             {comparisonCandidates.length > 0 && radarData && (
-              <div ref={comparisonRef} className="space-y-6">
+              <div ref={comparisonRef} data-comparison-ref className="space-y-6">
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                 <div className="bg-surface border border-border rounded-2xl p-6">
                   <h3 className="font-bold text-lg mb-4">Comparison Chart</h3>
