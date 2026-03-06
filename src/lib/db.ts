@@ -171,6 +171,12 @@ async function migrate(db: Client) {
     );
   }
 
+  if (!existing.has("recommended_level")) {
+    await db.execute(
+      "ALTER TABLE feedback ADD COLUMN recommended_level TEXT"
+    );
+  }
+
   const candidateCols = await db.execute("PRAGMA table_info(candidates)");
   const candidateColNames = new Set(
     (candidateCols.rows as unknown as { name: string }[]).map((c) => c.name)

@@ -49,6 +49,7 @@ function FeedbackForm() {
   const [scores, setScores] = useState<Record<string, number>>({});
   const [comments, setComments] = useState<Record<string, string>>({});
   const [recommendation, setRecommendation] = useState("");
+  const [recommendedLevel, setRecommendedLevel] = useState("");
   const [overallComments, setOverallComments] = useState("");
   const [pendingImages, setPendingImages] = useState<File[]>([]);
   const [imagePreviews, setImagePreviews] = useState<string[]>([]);
@@ -128,6 +129,7 @@ function FeedbackForm() {
         setComments(loadedComments);
 
         setRecommendation((fb.overall_recommendation as string) || "");
+        setRecommendedLevel((fb.recommended_level as string) || "");
         setOverallComments((fb.overall_comments as string) || "");
 
         accumulatedSecondsRef.current = typeof fb.time_spent_seconds === "number" && fb.time_spent_seconds > 0
@@ -247,6 +249,7 @@ function FeedbackForm() {
       problem_statements:
         selectedProblems.length > 0 ? JSON.stringify(selectedProblems) : null,
       overall_recommendation: recommendation || null,
+      recommended_level: recommendedLevel || null,
       overall_comments: overallComments || null,
       status,
       time_spent_seconds: getElapsedSeconds(),
@@ -837,6 +840,22 @@ function FeedbackForm() {
                 {opt.label}
               </button>
             ))}
+          </div>
+
+          <div className="mb-4">
+            <label className="block text-sm font-medium mb-1.5">
+              Recommended Level
+            </label>
+            <select
+              value={recommendedLevel}
+              onChange={(e) => setRecommendedLevel(e.target.value)}
+              className="px-4 py-2.5 border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-accent bg-background text-sm"
+            >
+              <option value="">-- Select Level --</option>
+              {["L3", "L4", "L5", "L6", "L7", "L8"].map((lvl) => (
+                <option key={lvl} value={lvl}>{lvl}</option>
+              ))}
+            </select>
           </div>
 
           <div>

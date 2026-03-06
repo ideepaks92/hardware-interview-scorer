@@ -79,6 +79,7 @@ export async function POST(req: NextRequest) {
       ...COMMENT_KEYS,
       "overall_recommendation",
       "overall_comments",
+      "recommended_level",
       "status",
       "time_spent_seconds",
     ];
@@ -96,6 +97,7 @@ export async function POST(req: NextRequest) {
       ...COMMENT_KEYS.map((k) => body[k] || null),
       body.overall_recommendation || null,
       body.overall_comments || null,
+      body.recommended_level || null,
       status,
       body.time_spent_seconds ?? 0,
     ];
@@ -142,6 +144,7 @@ export async function PUT(req: NextRequest) {
       ...COMMENT_KEYS,
       "overall_recommendation",
       "overall_comments",
+      "recommended_level",
       "status",
       "time_spent_seconds",
       "updated_at",
@@ -157,6 +160,7 @@ export async function PUT(req: NextRequest) {
       ...COMMENT_KEYS.map((k) => body[k] || null),
       body.overall_recommendation || null,
       body.overall_comments || null,
+      body.recommended_level || null,
       status,
       body.time_spent_seconds ?? 0,
       new Date().toISOString().replace("T", " ").slice(0, 19),

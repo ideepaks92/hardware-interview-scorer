@@ -455,7 +455,9 @@ export default function DashboardPage() {
 
       html += `<div style="display: flex; align-items: center; gap: 16px; margin-bottom: 16px; padding: 10px 14px; background: #f0f9ff; border-radius: 8px;">
         <div><span style="font-size: 11px; color: #666; text-transform: uppercase; font-weight: 600;">Recommendation</span>
-        <div style="font-size: 16px; font-weight: 700; color: ${recHex};">${recLabel(fb.overall_recommendation)}</div></div>
+        <div style="font-size: 16px; font-weight: 700; color: ${recHex};">${recLabel(fb.overall_recommendation)}</div></div>${fb.recommended_level ? `
+        <div style="margin-left: 16px;"><span style="font-size: 11px; color: #666; text-transform: uppercase; font-weight: 600;">Recommended Level</span>
+        <div style="font-size: 16px; font-weight: 700; color: #1e40af;">${fb.recommended_level}</div></div>` : ""}
         <div style="margin-left: auto; text-align: right;"><span style="font-size: 11px; color: #666; text-transform: uppercase; font-weight: 600;">Weighted Score</span>
         <div style="font-size: 24px; font-weight: 800; color: #2563eb;">${overallPct}</div></div></div>`;
 
@@ -522,7 +524,9 @@ export default function DashboardPage() {
         </div>
         <div style="display: flex; align-items: center; gap: 16px;">
           <div style="text-align: center;"><div style="font-size: 10px; color: #666; text-transform: uppercase; font-weight: 600;">Rec</div>
-            <div style="font-size: 14px; font-weight: 700; color: ${recHex};">${recLabel(fb.overall_recommendation)}</div></div>
+            <div style="font-size: 14px; font-weight: 700; color: ${recHex};">${recLabel(fb.overall_recommendation)}</div></div>${fb.recommended_level ? `
+          <div style="text-align: center;"><div style="font-size: 10px; color: #666; text-transform: uppercase; font-weight: 600;">Level</div>
+            <div style="font-size: 14px; font-weight: 700; color: #1e40af;">${fb.recommended_level}</div></div>` : ""}
           <div style="text-align: center;"><div style="font-size: 10px; color: #666; text-transform: uppercase; font-weight: 600;">Weighted</div>
             <div style="font-size: 22px; font-weight: 800; color: #2563eb;">${overallPct}</div></div>
         </div></div>`;
@@ -620,7 +624,11 @@ export default function DashboardPage() {
           <div>
             <span style="font-size: 12px; color: #666; text-transform: uppercase; font-weight: 600;">Recommendation</span>
             <div style="font-size: 18px; font-weight: 700; color: ${recColorHex};">${recLabel(fb.overall_recommendation)}</div>
-          </div>
+          </div>${fb.recommended_level ? `
+          <div style="margin-left: 16px;">
+            <span style="font-size: 12px; color: #666; text-transform: uppercase; font-weight: 600;">Recommended Level</span>
+            <div style="font-size: 18px; font-weight: 700; color: #1e40af;">${fb.recommended_level}</div>
+          </div>` : ""}
           <div style="margin-left: auto; text-align: right;">
             <span style="font-size: 12px; color: #666; text-transform: uppercase; font-weight: 600;">Weighted Score</span>
             <div style="font-size: 28px; font-weight: 800; color: #2563eb;">${overallPct}</div>
