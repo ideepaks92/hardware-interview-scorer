@@ -297,14 +297,25 @@ export default function DashboardPage() {
     router.push("/");
   }
 
+  function pdfDateStr(dateStr: string): string {
+    const parts = dateStr.split("-");
+    if (parts.length === 3) return `${parts[1]}${parts[2]}${parts[0].slice(2)}`;
+    return dateStr;
+  }
+
   async function downloadReport(fb: Feedback) {
     setDownloading(fb.id);
     try {
-      const html2canvas = (await import("html2canvas")).default;
+      const [html2canvasModule, jsPDFModule] = await Promise.all([
+        import("html2canvas"),
+        import("jspdf"),
+      ]);
+      const html2canvas = html2canvasModule.default;
+      const jsPDF = jsPDFModule.default;
+
       const el = reportRef.current;
       if (!el) return;
 
-      el.dataset.feedbackId = fb.id;
       el.innerHTML = buildReportHTML(fb);
       el.style.display = "block";
 
@@ -317,10 +328,22 @@ export default function DashboardPage() {
       });
       el.style.display = "none";
 
-      const link = document.createElement("a");
-      link.download = `${fb.candidate_name.replace(/\s+/g, "_")}_feedback_${formatShortDate(fb.interview_date)}.png`;
-      link.href = canvas.toDataURL("image/png");
-      link.click();
+      const imgWidth = 210;
+      const imgHeight = (canvas.height * imgWidth) / canvas.width;
+      const pdf = new jsPDF({ orientation: imgHeight > 297 ? "p" : "p", unit: "mm", format: "a4" });
+      const pageHeight = pdf.internal.pageSize.getHeight();
+      let position = 0;
+
+      while (position < imgHeight) {
+        if (position > 0) pdf.addPage();
+        pdf.addImage(canvas.toDataURL("image/png"), "PNG", 0, -position, imgWidth, imgHeight);
+        position += pageHeight;
+      }
+
+      const candidateFirst = fb.candidate_name.split(" ")[0];
+      const interviewerFirst = fb.interviewer_name.split(" ")[0];
+      const datePart = pdfDateStr(fb.interview_date);
+      pdf.save(`Feedback-${candidateFirst}-${interviewerFirst}-${datePart}.pdf`);
     } catch (err) {
       console.error("Download error:", err);
     }
@@ -330,6 +353,7 @@ export default function DashboardPage() {
   function buildReportHTML(fb: Feedback): string {
     const overall = weightedOverallFromFeedback(fb);
     const overallPct = overall ? scoreToPercent(overall) : "--";
+    const recColorHex = fb.overall_recommendation === "strong_yes" || fb.overall_recommendation === "yes" ? "#16a34a" : fb.overall_recommendation === "maybe" ? "#d97706" : "#dc2626";
 
     let html = `
       <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; color: #1a1a1a; padding: 32px; width: 800px; background: #fff;">
@@ -344,16 +368,26 @@ export default function DashboardPage() {
             <span><b>Date:</b> ${formatShortDate(fb.interview_date)}</span>
           </div>
         </div>
-        <div style="display: flex; align-items: center; gap: 16px; margin-bottom: 20px; padding: 12px 16px; background: #f0f9ff; border-radius: 8px;">
+        <div style="display: flex; align-items: center; gap: 16px; margin-bottom: ${fb.overall_comments ? "12px" : "20px"}; padding: 12px 16px; background: #f0f9ff; border-radius: 8px;">
           <div>
             <span style="font-size: 12px; color: #666; text-transform: uppercase; font-weight: 600;">Recommendation</span>
-            <div style="font-size: 18px; font-weight: 700; color: ${fb.overall_recommendation === "strong_yes" || fb.overall_recommendation === "yes" ? "#16a34a" : fb.overall_recommendation === "maybe" ? "#d97706" : "#dc2626"};">${recLabel(fb.overall_recommendation)}</div>
+            <div style="font-size: 18px; font-weight: 700; color: ${recColorHex};">${recLabel(fb.overall_recommendation)}</div>
           </div>
           <div style="margin-left: auto; text-align: right;">
             <span style="font-size: 12px; color: #666; text-transform: uppercase; font-weight: 600;">Weighted Score</span>
             <div style="font-size: 28px; font-weight: 800; color: #2563eb;">${overallPct}</div>
           </div>
-        </div>
+        </div>`;
+
+    if (fb.overall_comments) {
+      html += `
+        <div style="margin-bottom: 20px; padding: 10px 14px; background: #eff6ff; border-radius: 6px; border-left: 3px solid #2563eb;">
+          <div style="font-size: 11px; font-weight: 600; text-transform: uppercase; color: #2563eb; margin-bottom: 3px;">Overall Notes</div>
+          <div style="font-size: 13px; line-height: 1.5;">${fb.overall_comments}</div>
+        </div>`;
+    }
+
+    html += `
         <table style="width: 100%; border-collapse: collapse; font-size: 13px; margin-bottom: 20px;">
           <thead>
             <tr style="background: #f1f5f9;">
@@ -387,7 +421,7 @@ export default function DashboardPage() {
     html += `</tbody></table>`;
 
     const hasComments = SCORING_CATEGORIES.some((cat) => fb[cat.commentKey]);
-    if (hasComments || fb.overall_comments) {
+    if (hasComments) {
       html += `<div style="margin-top: 16px;"><h3 style="font-size: 14px; font-weight: 700; margin: 0 0 12px 0;">Comments</h3>`;
       for (const cat of SCORING_CATEGORIES) {
         const comment = fb[cat.commentKey] as string | null;
@@ -397,12 +431,6 @@ export default function DashboardPage() {
             <div style="font-size: 13px;">${comment}</div>
           </div>`;
         }
-      }
-      if (fb.overall_comments) {
-        html += `<div style="margin-bottom: 10px; padding: 8px 12px; background: #eff6ff; border-radius: 6px; border-left: 3px solid #2563eb;">
-          <div style="font-size: 11px; font-weight: 600; text-transform: uppercase; color: #2563eb; margin-bottom: 2px;">Overall Notes</div>
-          <div style="font-size: 13px;">${fb.overall_comments}</div>
-        </div>`;
       }
       html += `</div>`;
     }
