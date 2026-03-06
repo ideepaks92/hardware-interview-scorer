@@ -780,7 +780,7 @@ export default function DashboardPage() {
                           r: {
                             beginAtZero: true,
                             max: 100,
-                            ticks: { stepSize: 20, font: { size: 10 } },
+                            ticks: { stepSize: 20, font: { size: 10 }, showLabelBackdrop: true, backdropColor: "rgba(255,255,255,0.85)", backdropPadding: 2, z: 1 },
                             pointLabels: { font: { size: 11, weight: "bold" as const } },
                           },
                         },
