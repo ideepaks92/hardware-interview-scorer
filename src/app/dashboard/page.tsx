@@ -225,6 +225,7 @@ export default function DashboardPage() {
   const [downloadMenu, setDownloadMenu] = useState<string | null>(null);
   const [expandedComments, setExpandedComments] = useState<Set<string>>(new Set());
   const [downloadingComparison, setDownloadingComparison] = useState(false);
+  const [comparisonMenu, setComparisonMenu] = useState(false);
   const reportRef = useRef<HTMLDivElement>(null);
   const comparisonRef = useRef<HTMLDivElement>(null);
 
@@ -661,6 +662,44 @@ export default function DashboardPage() {
       const names = comparisonCandidates.map((c) => c.name.split(" ")[0]).join("-vs-");
       await renderHtmlToPng(html, `Comparison-${names}.png`, 1100);
     } catch (err) { console.error("Comparison PNG error:", err); }
+    setDownloadingComparison(false);
+  }
+
+  async function downloadChartOnlyPng() {
+    setDownloadingComparison(true);
+    try {
+      const chartCanvas = comparisonRef.current?.querySelector("canvas");
+      const chartImgSrc = chartCanvas ? chartCanvas.toDataURL("image/png") : "";
+      if (!chartImgSrc) { setDownloadingComparison(false); return; }
+
+      const summary = generateComparisonSummary(comparisonCandidates, allFeedbacks);
+
+      let html = `<div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; color: #1a1a1a; padding: 32px; width: 800px; background: #fff;">`;
+      html += `<h1 style="font-size: 20px; font-weight: 700; margin: 0 0 20px 0; border-bottom: 2px solid #2563eb; padding-bottom: 12px;">Candidate Comparison</h1>`;
+      html += `<div style="display: flex; gap: 24px; margin-bottom: 16px;">`;
+      html += `<div style="flex: 1; text-align: center;">
+        <img src="${chartImgSrc}" style="max-width: 100%; height: auto;" /></div>`;
+      html += `<div style="flex: 1;">
+        <h3 style="font-size: 14px; font-weight: 700; margin: 0 0 12px 0;">Summary</h3>
+        <p style="font-size: 13px; line-height: 1.6; margin: 0 0 20px 0;">${summary}</p>`;
+      for (const c of comparisonCandidates) {
+        const fbs = allFeedbacks.filter((f) => f.candidate_id === c.id);
+        const ov = fbs.map((fb) => weightedOverallFromFeedback(fb)).filter((s): s is number => s !== null);
+        const avg = ov.length > 0 ? ov.reduce((a, b) => a + b, 0) / ov.length : null;
+        const pct = avg ? Math.round((avg / 5) * 100) : 0;
+        html += `<div style="display: flex; align-items: center; gap: 10px; margin-bottom: 8px;">
+          <span style="font-size: 12px; font-weight: 600; width: 120px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${c.name}</span>
+          <div style="flex: 1; background: #e2e8f0; border-radius: 10px; height: 16px; overflow: hidden;">
+            <div style="height: 100%; border-radius: 10px; background: #2563eb; width: ${pct}%;"></div>
+          </div>
+          <span style="font-size: 12px; font-weight: 700; width: 40px; text-align: right;">${avg ? scoreToPercent(avg) : "--"}</span>
+        </div>`;
+      }
+      html += `</div></div></div>`;
+
+      const names = comparisonCandidates.map((c) => c.name.split(" ")[0]).join("-vs-");
+      await renderHtmlToPng(html, `Chart-${names}.png`, 800);
+    } catch (err) { console.error("Chart PNG error:", err); }
     setDownloadingComparison(false);
   }
 
@@ -1135,17 +1174,24 @@ export default function DashboardPage() {
             </div>
 
             {comparisonCandidates.length > 0 && radarData && (
-              <div className="flex justify-end mb-2">
+              <div className="flex justify-end mb-2 relative">
                 <button
-                  onClick={downloadComparisonPng}
+                  onClick={() => setComparisonMenu(!comparisonMenu)}
                   disabled={downloadingComparison}
                   className="flex items-center gap-2 px-4 py-2 bg-surface border border-border rounded-lg text-sm font-medium hover:bg-surface-secondary transition-colors cursor-pointer disabled:opacity-50"
                 >
                   {downloadingComparison
                     ? <span className="inline-block w-4 h-4 border-2 border-accent border-t-transparent rounded-full animate-spin" />
                     : <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg>}
-                  Download Comparison PNG
+                  Download PNG
+                  <svg className="w-3 h-3 ml-1" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
                 </button>
+                {comparisonMenu && (
+                  <div className="absolute right-0 top-full mt-1 bg-surface border border-border rounded-lg shadow-lg z-20 py-1 min-w-[200px]">
+                    <button onClick={() => { setComparisonMenu(false); downloadComparisonPng(); }} className="w-full px-3 py-2 text-xs hover:bg-surface-secondary text-left cursor-pointer">PNG — Full Comparison</button>
+                    <button onClick={() => { setComparisonMenu(false); downloadChartOnlyPng(); }} className="w-full px-3 py-2 text-xs hover:bg-surface-secondary text-left cursor-pointer">PNG — Chart + Summary Only</button>
+                  </div>
+                )}
               </div>
             )}
             {comparisonCandidates.length > 0 && radarData && (
@@ -1451,7 +1497,7 @@ export default function DashboardPage() {
           </div>
         )}
         <footer className="mt-16 pb-8 text-center text-xs text-muted italic">
-          <p>Made with &lt;3 in California</p>
+          <p>Made with 💓 in California</p>
           <p className="mt-1">
             Vibe Coded by Deepak (
             <a href="https://heydeepak.com" target="_blank" rel="noopener noreferrer" className="underline hover:text-accent">heydeepak.com</a>
