@@ -13,7 +13,7 @@ export async function GET(req: NextRequest) {
   const interviewerId = searchParams.get("interviewer_id");
   const candidateId = searchParams.get("candidate_id");
 
-  const db = getDb();
+  const db = await getDb();
 
   let query = `
     SELECT f.*, c.name as candidate_name, c.position as candidate_position,
@@ -23,7 +23,7 @@ export async function GET(req: NextRequest) {
     JOIN interviewers i ON f.interviewer_id = i.id
   `;
   const conditions: string[] = [];
-  const params: string[] = [];
+  const params: (string | null)[] = [];
 
   if (interviewerId) {
     conditions.push("f.interviewer_id = ?");
@@ -38,8 +38,8 @@ export async function GET(req: NextRequest) {
   }
   query += " ORDER BY f.created_at DESC";
 
-  const feedbacks = db.prepare(query).all(...params);
-  return NextResponse.json(feedbacks);
+  const result = await db.execute({ sql: query, args: params });
+  return NextResponse.json(result.rows);
 }
 
 export async function POST(req: NextRequest) {
@@ -53,7 +53,7 @@ export async function POST(req: NextRequest) {
   }
 
   const id = uuidv4();
-  const db = getDb();
+  const db = await getDb();
 
   const allColumns = [
     "id",
@@ -82,10 +82,15 @@ export async function POST(req: NextRequest) {
     body.overall_comments || null,
   ];
 
-  db.prepare(
-    `INSERT INTO feedback (${columnList}) VALUES (${placeholders})`
-  ).run(...values);
+  await db.execute({
+    sql: `INSERT INTO feedback (${columnList}) VALUES (${placeholders})`,
+    args: values,
+  });
 
-  const feedback = db.prepare("SELECT * FROM feedback WHERE id = ?").get(id);
-  return NextResponse.json(feedback);
+  const result = await db.execute({
+    sql: "SELECT * FROM feedback WHERE id = ?",
+    args: [id],
+  });
+
+  return NextResponse.json(result.rows[0]);
 }

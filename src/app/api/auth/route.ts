@@ -12,21 +12,27 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  const db = getDb();
+  const db = await getDb();
 
-  let interviewer = db
-    .prepare("SELECT * FROM interviewers WHERE email = ?")
-    .get(email) as Record<string, string> | undefined;
+  const existing = await db.execute({
+    sql: "SELECT * FROM interviewers WHERE email = ?",
+    args: [email],
+  });
 
-  if (!interviewer) {
-    const id = uuidv4();
-    db.prepare(
-      "INSERT INTO interviewers (id, name, email, role) VALUES (?, ?, ?, ?)"
-    ).run(id, name, email, role || "Interviewer");
-    interviewer = db
-      .prepare("SELECT * FROM interviewers WHERE id = ?")
-      .get(id) as Record<string, string>;
+  if (existing.rows.length > 0) {
+    return NextResponse.json(existing.rows[0]);
   }
 
-  return NextResponse.json(interviewer);
+  const id = uuidv4();
+  await db.execute({
+    sql: "INSERT INTO interviewers (id, name, email, role) VALUES (?, ?, ?, ?)",
+    args: [id, name, email, role || "Interviewer"],
+  });
+
+  const result = await db.execute({
+    sql: "SELECT * FROM interviewers WHERE id = ?",
+    args: [id],
+  });
+
+  return NextResponse.json(result.rows[0]);
 }

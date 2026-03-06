@@ -1,15 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
 import getDb from "@/lib/db";
 import { v4 as uuidv4 } from "uuid";
-import { writeFile, mkdir } from "fs/promises";
-import path from "path";
 
 export async function GET() {
-  const db = getDb();
-  const candidates = db
-    .prepare("SELECT * FROM candidates ORDER BY created_at DESC")
-    .all();
-  return NextResponse.json(candidates);
+  const db = await getDb();
+  const result = await db.execute(
+    "SELECT id, name, resume_filename, position, created_at FROM candidates ORDER BY created_at DESC"
+  );
+  return NextResponse.json(result.rows);
 }
 
 export async function POST(req: NextRequest) {
@@ -27,27 +25,24 @@ export async function POST(req: NextRequest) {
 
   const id = uuidv4();
   let resumeFilename: string | null = null;
-  let resumePath: string | null = null;
+  let resumeData: string | null = null;
 
   if (resume && resume.size > 0) {
-    const uploadsDir = path.join(process.cwd(), "uploads");
-    await mkdir(uploadsDir, { recursive: true });
-
-    const ext = path.extname(resume.name);
     resumeFilename = resume.name;
-    resumePath = path.join(uploadsDir, `${id}${ext}`);
-
     const bytes = await resume.arrayBuffer();
-    await writeFile(resumePath, Buffer.from(bytes));
+    resumeData = Buffer.from(bytes).toString("base64");
   }
 
-  const db = getDb();
-  db.prepare(
-    "INSERT INTO candidates (id, name, resume_filename, resume_path, position) VALUES (?, ?, ?, ?, ?)"
-  ).run(id, name, resumeFilename, resumePath, position || null);
+  const db = await getDb();
+  await db.execute({
+    sql: "INSERT INTO candidates (id, name, resume_filename, resume_data, position) VALUES (?, ?, ?, ?, ?)",
+    args: [id, name, resumeFilename, resumeData, position || null],
+  });
 
-  const candidate = db
-    .prepare("SELECT * FROM candidates WHERE id = ?")
-    .get(id);
-  return NextResponse.json(candidate);
+  const result = await db.execute({
+    sql: "SELECT id, name, resume_filename, position, created_at FROM candidates WHERE id = ?",
+    args: [id],
+  });
+
+  return NextResponse.json(result.rows[0]);
 }

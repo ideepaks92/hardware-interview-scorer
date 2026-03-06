@@ -12,21 +12,24 @@ export async function GET(req: NextRequest) {
     );
   }
 
-  const db = getDb();
+  const db = await getDb();
 
-  const candidate = db
-    .prepare("SELECT * FROM candidates WHERE id = ?")
-    .get(candidateId);
+  const candidateResult = await db.execute({
+    sql: "SELECT * FROM candidates WHERE id = ?",
+    args: [candidateId],
+  });
 
-  const feedbacks = db
-    .prepare(
-      `SELECT f.*, i.name as interviewer_name, i.role as interviewer_role
-       FROM feedback f
-       JOIN interviewers i ON f.interviewer_id = i.id
-       WHERE f.candidate_id = ?
-       ORDER BY f.created_at DESC`
-    )
-    .all(candidateId);
+  const feedbackResult = await db.execute({
+    sql: `SELECT f.*, i.name as interviewer_name, i.role as interviewer_role
+          FROM feedback f
+          JOIN interviewers i ON f.interviewer_id = i.id
+          WHERE f.candidate_id = ?
+          ORDER BY f.created_at DESC`,
+    args: [candidateId],
+  });
 
-  return NextResponse.json({ candidate, feedbacks });
+  return NextResponse.json({
+    candidate: candidateResult.rows[0] || null,
+    feedbacks: feedbackResult.rows,
+  });
 }
