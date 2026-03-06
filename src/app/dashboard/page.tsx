@@ -465,6 +465,47 @@ export default function DashboardPage() {
       html += `</div>`;
     }
 
+    const images = feedbackImages[fb.id];
+    if (images && images.length > 0) {
+      html += `<div data-section style="margin-top: 20px; border-top: 1px solid #e2e8f0; padding-top: 16px;">
+        <h3 style="font-size: 14px; font-weight: 700; margin: 0 0 12px 0;">Screenshots &amp; Whiteboard Photos</h3>
+        <div style="display: flex; flex-wrap: wrap; gap: 10px;">`;
+      for (const img of images) {
+        html += `<div data-section style="width: 48%;">
+          <img src="data:${img.mime_type};base64,${img.image_data}" style="width: 100%; border-radius: 6px; border: 1px solid #e2e8f0;" />
+          <div style="font-size: 10px; color: #999; margin-top: 2px;">${img.filename}</div>
+        </div>`;
+      }
+      html += `</div></div>`;
+    }
+
+    let problemIds: string[] = [];
+    if (fb.problem_statements && typeof fb.problem_statements === "string") {
+      try { problemIds = JSON.parse(fb.problem_statements); } catch { /* skip */ }
+    }
+    const problems = PROBLEM_STATEMENTS.filter((p) => problemIds.includes(p.id));
+    if (problems.length > 0) {
+      html += `<div data-section style="margin-top: 20px; border-top: 1px solid #e2e8f0; padding-top: 16px;">
+        <h3 style="font-size: 14px; font-weight: 700; margin: 0 0 12px 0;">Problem Statements Discussed</h3>`;
+      for (const prob of problems) {
+        html += `<div data-section style="margin-bottom: 14px; padding: 10px 14px; background: #f8fafc; border-radius: 6px; border-left: 3px solid #2563eb;">
+          <div style="font-size: 13px; font-weight: 700; margin-bottom: 2px;">${prob.title}</div>
+          <div style="font-size: 11px; color: #2563eb; font-weight: 600; margin-bottom: 6px;">${prob.tag}</div>
+          <div style="font-size: 12px; color: #555; margin-bottom: 8px;">${prob.overview}</div>`;
+        for (const part of prob.parts) {
+          html += `<div style="margin-bottom: 6px;">
+            <div style="font-size: 12px; font-weight: 600; margin-bottom: 3px;">${part.title}</div>
+            <ul style="margin: 0; padding-left: 18px;">`;
+          for (const b of part.brief) {
+            html += `<li style="font-size: 11px; color: #555; margin-bottom: 2px;">${b}</li>`;
+          }
+          html += `</ul></div>`;
+        }
+        html += `</div>`;
+      }
+      html += `</div>`;
+    }
+
     html += `</div>`;
     return html;
   }
