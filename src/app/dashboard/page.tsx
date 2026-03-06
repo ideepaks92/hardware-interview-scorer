@@ -524,22 +524,24 @@ export default function DashboardPage() {
       html += `</div>`;
     }
 
-    const takeaways: string[] = [];
-    if (fb.overall_comments && typeof fb.overall_comments === "string") {
-      takeaways.push(fb.overall_comments as string);
-    }
-    for (const cat of SCORING_CATEGORIES) {
-      const comment = fb[cat.commentKey] as string | null;
-      if (comment) takeaways.push(`<b>${cat.label}:</b> ${comment}`);
-    }
-    if (takeaways.length > 0) {
+    const catTakeaways = SCORING_CATEGORIES
+      .filter((cat) => fb[cat.commentKey])
+      .map((cat) => ({ label: cat.label, comment: fb[cat.commentKey] as string }));
+    const hasOverall = fb.overall_comments && typeof fb.overall_comments === "string";
+    if (hasOverall || catTakeaways.length > 0) {
       html += `<div data-section style="margin-top: 20px; border-top: 1px solid #e2e8f0; padding-top: 16px;">
-        <h3 style="font-size: 14px; font-weight: 700; margin: 0 0 12px 0;">Key Takeaways for Greenhouse</h3>
-        <ul style="margin: 0; padding-left: 20px; font-size: 12px; line-height: 1.7; color: #333;">`;
-      for (const t of takeaways) {
-        html += `<li style="margin-bottom: 6px;">${t}</li>`;
+        <h3 style="font-size: 14px; font-weight: 700; margin: 0 0 14px 0;">Key Takeaways for Greenhouse</h3>`;
+      if (hasOverall) {
+        html += `<div style="font-size: 12px; line-height: 1.6; color: #333; margin-bottom: 16px;">${fb.overall_comments}</div>`;
       }
-      html += `</ul></div>`;
+      if (catTakeaways.length > 0) {
+        html += `<ul style="margin: 0; padding-left: 20px; font-size: 12px; line-height: 1.6; color: #333;">`;
+        for (const t of catTakeaways) {
+          html += `<li style="margin-bottom: 14px;"><b>${t.label}:</b> ${t.comment}</li>`;
+        }
+        html += `</ul>`;
+      }
+      html += `</div>`;
     }
 
     html += `</div>`;
