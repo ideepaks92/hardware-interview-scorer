@@ -12,6 +12,7 @@ export default function LoginPage() {
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [showForgot, setShowForgot] = useState(false);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -128,9 +129,20 @@ export default function LoginPage() {
           </div>
 
           <div>
-            <label className="block text-sm font-medium mb-1.5">
-              Password
-            </label>
+            <div className="flex items-center justify-between mb-1.5">
+              <label className="block text-sm font-medium">
+                Password
+              </label>
+              {mode === "signin" && (
+                <button
+                  type="button"
+                  onClick={() => setShowForgot((v) => !v)}
+                  className="text-xs text-accent hover:underline cursor-pointer"
+                >
+                  Forgot Password?
+                </button>
+              )}
+            </div>
             <input
               type="password"
               value={password}
@@ -140,6 +152,11 @@ export default function LoginPage() {
               placeholder={mode === "signup" ? "Min 6 characters" : "Enter your password"}
               className="w-full px-4 py-2.5 border border-border rounded-lg bg-background focus:outline-none focus:ring-2 focus:ring-accent focus:border-transparent"
             />
+            {showForgot && (
+              <p className="mt-2 text-xs text-muted bg-surface-secondary border border-border rounded-lg p-3">
+                Contact your admin to reset your password.
+              </p>
+            )}
           </div>
 
           {error && (
