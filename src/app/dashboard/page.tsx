@@ -468,18 +468,17 @@ export default function DashboardPage() {
       html += `</div>`;
     }
 
-    const hasComments = SCORING_CATEGORIES.some((cat) => fb[cat.commentKey]);
-    if (hasComments) {
-      html += `<div data-section style="margin-top: 16px;"><h3 style="font-size: 14px; font-weight: 700; margin: 0 0 12px 0;">Comments</h3>`;
-      for (const cat of SCORING_CATEGORIES) {
-        const comment = fb[cat.commentKey] as string | null;
-        if (comment) {
-          html += `<div data-section style="margin-bottom: 10px; padding: 8px 12px; background: #f8fafc; border-radius: 6px; border-left: 3px solid #2563eb;">
+    const commentCats = SCORING_CATEGORIES.filter((cat) => fb[cat.commentKey]);
+    if (commentCats.length > 0) {
+      html += `<div style="margin-top: 16px;">`;
+      commentCats.forEach((cat, idx) => {
+        html += `<div data-section>`;
+        if (idx === 0) html += `<h3 style="font-size: 14px; font-weight: 700; margin: 0 0 12px 0;">Comments</h3>`;
+        html += `<div style="margin-bottom: 10px; padding: 8px 12px; background: #f8fafc; border-radius: 6px; border-left: 3px solid #2563eb;">
             <div style="font-size: 11px; font-weight: 600; text-transform: uppercase; color: #666; margin-bottom: 2px;">${cat.label}</div>
-            <div style="font-size: 13px;">${comment}</div>
-          </div>`;
-        }
-      }
+            <div style="font-size: 13px;">${fb[cat.commentKey]}</div>
+          </div></div>`;
+      });
       html += `</div>`;
     }
 
@@ -489,7 +488,7 @@ export default function DashboardPage() {
         <h3 style="font-size: 14px; font-weight: 700; margin: 0 0 12px 0;">Screenshots &amp; Whiteboard Photos</h3>
         <div style="display: flex; flex-wrap: wrap; gap: 10px;">`;
       for (const img of reportImgs) {
-        html += `<div data-section style="width: 48%;">
+        html += `<div style="width: 48%;">
           <img src="data:${img.mime_type};base64,${img.image_data}" style="width: 100%; border-radius: 6px; border: 1px solid #e2e8f0;" />
           <div style="font-size: 10px; color: #999; margin-top: 2px;">${img.filename}</div>
         </div>`;
@@ -503,10 +502,11 @@ export default function DashboardPage() {
     }
     const problems = PROBLEM_STATEMENTS.filter((p) => problemIds.includes(p.id));
     if (problems.length > 0) {
-      html += `<div data-section style="margin-top: 20px; border-top: 1px solid #e2e8f0; padding-top: 16px;">
-        <h3 style="font-size: 14px; font-weight: 700; margin: 0 0 12px 0;">Problem Statements Discussed</h3>`;
-      for (const prob of problems) {
-        html += `<div data-section style="margin-bottom: 14px; padding: 10px 14px; background: #f8fafc; border-radius: 6px; border-left: 3px solid #2563eb;">
+      html += `<div style="margin-top: 20px; border-top: 1px solid #e2e8f0; padding-top: 16px;">`;
+      problems.forEach((prob, idx) => {
+        html += `<div data-section>`;
+        if (idx === 0) html += `<h3 style="font-size: 14px; font-weight: 700; margin: 0 0 12px 0;">Problem Statements Discussed</h3>`;
+        html += `<div style="margin-bottom: 14px; padding: 10px 14px; background: #f8fafc; border-radius: 6px; border-left: 3px solid #2563eb;">
           <div style="font-size: 13px; font-weight: 700; margin-bottom: 2px;">${prob.title}</div>
           <div style="font-size: 11px; color: #2563eb; font-weight: 600; margin-bottom: 6px;">${prob.tag}</div>
           <div style="font-size: 12px; color: #555; margin-bottom: 8px;">${prob.overview}</div>`;
@@ -519,8 +519,8 @@ export default function DashboardPage() {
           }
           html += `</ul></div>`;
         }
-        html += `</div>`;
-      }
+        html += `</div></div>`;
+      });
       html += `</div>`;
     }
 
