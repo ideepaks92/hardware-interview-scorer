@@ -43,8 +43,12 @@ export default function FeedbackPage() {
   const [comments, setComments] = useState<Record<string, string>>({});
   const [recommendation, setRecommendation] = useState("");
   const [overallComments, setOverallComments] = useState("");
+  const [pendingImages, setPendingImages] = useState<File[]>([]);
+  const [imagePreviews, setImagePreviews] = useState<string[]>([]);
   const [submitting, setSubmitting] = useState(false);
   const [success, setSuccess] = useState(false);
+  const [feedbackId, setFeedbackId] = useState<string | null>(null);
+  const [uploadingImages, setUploadingImages] = useState(false);
 
   useEffect(() => {
     const stored = localStorage.getItem("interviewer");
@@ -97,6 +101,21 @@ export default function FeedbackPage() {
     setComments((prev) => ({ ...prev, [key]: value }));
   }
 
+  function handleImageSelect(e: React.ChangeEvent<HTMLInputElement>) {
+    const files = Array.from(e.target.files || []);
+    if (files.length === 0) return;
+    setPendingImages((prev) => [...prev, ...files]);
+    const newPreviews = files.map((f) => URL.createObjectURL(f));
+    setImagePreviews((prev) => [...prev, ...newPreviews]);
+    e.target.value = "";
+  }
+
+  function removeImage(index: number) {
+    URL.revokeObjectURL(imagePreviews[index]);
+    setPendingImages((prev) => prev.filter((_, i) => i !== index));
+    setImagePreviews((prev) => prev.filter((_, i) => i !== index));
+  }
+
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!interviewer || !selectedCandidate) return;
@@ -127,6 +146,21 @@ export default function FeedbackPage() {
     });
 
     if (res.ok) {
+      const feedback = await res.json();
+      const fbId = feedback.id;
+      setFeedbackId(fbId);
+
+      if (pendingImages.length > 0) {
+        setUploadingImages(true);
+        const formData = new FormData();
+        pendingImages.forEach((f) => formData.append("images", f));
+        await fetch(`/api/feedback/${fbId}/images`, {
+          method: "POST",
+          body: formData,
+        });
+        setUploadingImages(false);
+      }
+
       setSuccess(true);
       setTimeout(() => router.push("/dashboard"), 1500);
     }
@@ -154,8 +188,14 @@ export default function FeedbackPage() {
               />
             </svg>
           </div>
-          <h2 className="text-2xl font-bold mb-2">Feedback Submitted</h2>
-          <p className="text-muted">Redirecting to dashboard...</p>
+          <h2 className="text-2xl font-bold mb-2">
+            {uploadingImages ? "Uploading images..." : "Feedback Submitted"}
+          </h2>
+          <p className="text-muted">
+            {uploadingImages
+              ? "Please wait while screenshots are saved..."
+              : "Redirecting to dashboard..."}
+          </p>
         </div>
       </div>
     );
@@ -563,6 +603,52 @@ export default function FeedbackPage() {
           </div>
         ))}
 
+        {/* Whiteboard / Screenshot uploads */}
+        <div className="bg-surface border border-border rounded-2xl p-6">
+          <h2 className="font-bold text-lg mb-1">Screenshots & Whiteboard Photos</h2>
+          <p className="text-sm text-muted mb-4">
+            Upload photos of whiteboard sessions, sketches, or notes from this interview.
+          </p>
+
+          <label className="inline-flex items-center gap-2 px-4 py-2.5 bg-surface-secondary border border-border rounded-lg hover:bg-surface-tertiary transition-colors cursor-pointer text-sm font-medium">
+            <svg className="w-4 h-4 text-muted" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+            </svg>
+            Add Images
+            <input
+              type="file"
+              accept="image/*"
+              multiple
+              onChange={handleImageSelect}
+              className="hidden"
+            />
+          </label>
+
+          {imagePreviews.length > 0 && (
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3 mt-4">
+              {imagePreviews.map((src, i) => (
+                <div key={i} className="relative group rounded-lg overflow-hidden border border-border">
+                  <img
+                    src={src}
+                    alt={pendingImages[i]?.name || `Image ${i + 1}`}
+                    className="w-full h-32 object-cover"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => removeImage(i)}
+                    className="absolute top-1.5 right-1.5 w-6 h-6 bg-red-500 text-white rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer text-xs"
+                  >
+                    &times;
+                  </button>
+                  <p className="text-[10px] text-muted truncate px-2 py-1 bg-surface">
+                    {pendingImages[i]?.name}
+                  </p>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
         {/* Overall recommendation */}
         <div className="bg-surface border border-border rounded-2xl p-6">
           <h2 className="font-bold text-lg mb-4">Overall Recommendation</h2>
@@ -605,7 +691,11 @@ export default function FeedbackPage() {
             disabled={submitting || !selectedCandidate}
             className="flex-1 py-3.5 bg-accent text-white font-semibold rounded-xl hover:bg-accent-hover transition-colors disabled:opacity-50 cursor-pointer"
           >
-            {submitting ? "Submitting..." : "Submit Feedback"}
+            {submitting
+              ? pendingImages.length > 0
+                ? "Submitting with images..."
+                : "Submitting..."
+              : `Submit Feedback${pendingImages.length > 0 ? ` (${pendingImages.length} image${pendingImages.length > 1 ? "s" : ""})` : ""}`}
           </button>
           <button
             type="button"

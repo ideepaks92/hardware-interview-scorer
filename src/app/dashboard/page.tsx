@@ -31,6 +31,15 @@ interface Feedback {
   [key: string]: string | number | null;
 }
 
+interface FeedbackImage {
+  id: string;
+  feedback_id: string;
+  filename: string;
+  mime_type: string;
+  image_data: string;
+  caption: string | null;
+}
+
 function ScorePill({ score }: { score: number | null }) {
   if (score === null || score === undefined)
     return <span className="text-muted">--</span>;
@@ -88,6 +97,8 @@ export default function DashboardPage() {
     "my-feedback"
   );
   const [selectedCandidates, setSelectedCandidates] = useState<string[]>([]);
+  const [feedbackImages, setFeedbackImages] = useState<Record<string, FeedbackImage[]>>({});
+  const [lightboxImage, setLightboxImage] = useState<string | null>(null);
 
   useEffect(() => {
     const stored = localStorage.getItem("interviewer");
@@ -106,8 +117,25 @@ export default function DashboardPage() {
       fetch("/api/feedback"),
     ]);
     setCandidates(await candRes.json());
-    setFeedbacks(await fbRes.json());
-    setAllFeedbacks(await allFbRes.json());
+    const myFb = await fbRes.json();
+    const allFb = await allFbRes.json();
+    setFeedbacks(myFb);
+    setAllFeedbacks(allFb);
+
+    const allIds = [...new Set([...myFb, ...allFb].map((f: Feedback) => f.id))];
+    const imageMap: Record<string, FeedbackImage[]> = {};
+    await Promise.all(
+      allIds.map(async (id) => {
+        try {
+          const res = await fetch(`/api/feedback/${id}/images`);
+          if (res.ok) {
+            const imgs = await res.json();
+            if (imgs.length > 0) imageMap[id as string] = imgs;
+          }
+        } catch { /* skip */ }
+      })
+    );
+    setFeedbackImages(imageMap);
   }, [interviewer]);
 
   useEffect(() => {
@@ -456,6 +484,32 @@ export default function DashboardPage() {
                             </p>
                           </div>
                         )}
+                        {feedbackImages[fb.id] && feedbackImages[fb.id].length > 0 && (
+                          <div className="md:col-span-2">
+                            <p className="text-xs font-semibold text-muted uppercase mb-2">
+                              Screenshots & Whiteboard Photos
+                            </p>
+                            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2">
+                              {feedbackImages[fb.id].map((img) => (
+                                <button
+                                  key={img.id}
+                                  type="button"
+                                  onClick={() => setLightboxImage(`data:${img.mime_type};base64,${img.image_data}`)}
+                                  className="rounded-lg overflow-hidden border border-border hover:border-accent transition-colors cursor-pointer"
+                                >
+                                  <img
+                                    src={`data:${img.mime_type};base64,${img.image_data}`}
+                                    alt={img.filename}
+                                    className="w-full h-24 object-cover"
+                                  />
+                                  <p className="text-[10px] text-muted truncate px-1.5 py-1 bg-surface-secondary">
+                                    {img.filename}
+                                  </p>
+                                </button>
+                              ))}
+                            </div>
+                          </div>
+                        )}
                       </div>
                     </div>
                   ))}
@@ -711,6 +765,29 @@ export default function DashboardPage() {
                                     </span>
                                   </div>
                                 )}
+                                {feedbackImages[fb.id] && feedbackImages[fb.id].length > 0 && (
+                                  <div className="mt-2 pt-2 border-t border-border">
+                                    <p className="text-xs font-semibold text-muted uppercase mb-1.5">
+                                      Screenshots
+                                    </p>
+                                    <div className="flex gap-2 flex-wrap">
+                                      {feedbackImages[fb.id].map((img) => (
+                                        <button
+                                          key={img.id}
+                                          type="button"
+                                          onClick={() => setLightboxImage(`data:${img.mime_type};base64,${img.image_data}`)}
+                                          className="rounded overflow-hidden border border-border hover:border-accent transition-colors cursor-pointer"
+                                        >
+                                          <img
+                                            src={`data:${img.mime_type};base64,${img.image_data}`}
+                                            alt={img.filename}
+                                            className="w-16 h-16 object-cover"
+                                          />
+                                        </button>
+                                      ))}
+                                    </div>
+                                  </div>
+                                )}
                               </div>
                             ))}
                           </div>
@@ -721,6 +798,27 @@ export default function DashboardPage() {
                 </div>
               </div>
             )}
+          </div>
+        )}
+
+        {lightboxImage && (
+          <div
+            className="fixed inset-0 bg-overlay z-50 flex items-center justify-center p-4"
+            onClick={() => setLightboxImage(null)}
+          >
+            <div className="relative max-w-4xl max-h-[90vh]">
+              <img
+                src={lightboxImage}
+                alt="Full size"
+                className="max-w-full max-h-[90vh] object-contain rounded-lg shadow-2xl"
+              />
+              <button
+                onClick={() => setLightboxImage(null)}
+                className="absolute -top-3 -right-3 w-8 h-8 bg-surface border border-border rounded-full flex items-center justify-center text-foreground hover:bg-surface-secondary cursor-pointer shadow-lg"
+              >
+                &times;
+              </button>
+            </div>
           </div>
         )}
       </main>

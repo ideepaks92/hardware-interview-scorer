@@ -98,6 +98,17 @@ async function initializeDb(db: Client) {
       FOREIGN KEY (interviewer_id) REFERENCES interviewers(id),
       FOREIGN KEY (candidate_id) REFERENCES candidates(id)
     );
+
+    CREATE TABLE IF NOT EXISTS feedback_images (
+      id TEXT PRIMARY KEY,
+      feedback_id TEXT NOT NULL,
+      filename TEXT NOT NULL,
+      mime_type TEXT NOT NULL,
+      image_data TEXT NOT NULL,
+      caption TEXT,
+      created_at TEXT DEFAULT (datetime('now')),
+      FOREIGN KEY (feedback_id) REFERENCES feedback(id)
+    );
   `);
 
   await migrate(db);
