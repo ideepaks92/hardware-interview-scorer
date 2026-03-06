@@ -506,53 +506,68 @@ export default function DashboardPage() {
     setDownloading(fb.id);
     setDownloadMenu(null);
     try {
-      let html = `<div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; color: #1a1a1a; padding: 32px; width: 900px; background: #fff;">`;
-      html += `<div style="border-bottom: 2px solid #2563eb; padding-bottom: 12px; margin-bottom: 20px;">
-        <h1 style="font-size: 20px; font-weight: 700; margin: 0 0 4px 0;">Interview Feedback — Detailed Breakdown</h1>
-        <div style="display: flex; gap: 24px; font-size: 13px; color: #666; margin-top: 6px;">
-          <span><b>Candidate:</b> ${fb.candidate_name}</span><span><b>Position:</b> ${fb.candidate_position || "—"}</span>
-          <span><b>Interviewer:</b> ${fb.interviewer_name}</span><span><b>Date:</b> ${formatShortDate(fb.interview_date)}</span>
+      const overall = weightedOverallFromFeedback(fb);
+      const overallPct = overall ? scoreToPercent(overall) : "--";
+      const recHex = fb.overall_recommendation === "strong_yes" || fb.overall_recommendation === "yes" ? "#16a34a" : fb.overall_recommendation === "maybe" ? "#d97706" : "#dc2626";
+      const W = 1400;
+
+      let html = `<div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; color: #1a1a1a; padding: 32px; width: ${W}px; background: #fff;">`;
+      html += `<div style="display: flex; align-items: center; justify-content: space-between; border-bottom: 2px solid #2563eb; padding-bottom: 12px; margin-bottom: 20px;">
+        <div>
+          <h1 style="font-size: 20px; font-weight: 700; margin: 0 0 4px 0;">Interview Feedback — Detailed Breakdown</h1>
+          <div style="display: flex; gap: 20px; font-size: 12px; color: #666; margin-top: 4px;">
+            <span><b>Candidate:</b> ${fb.candidate_name}</span><span><b>Position:</b> ${fb.candidate_position || "—"}</span>
+            <span><b>Interviewer:</b> ${fb.interviewer_name}</span><span><b>Date:</b> ${formatShortDate(fb.interview_date)}</span>
+          </div>
+        </div>
+        <div style="display: flex; align-items: center; gap: 16px;">
+          <div style="text-align: center;"><div style="font-size: 10px; color: #666; text-transform: uppercase; font-weight: 600;">Rec</div>
+            <div style="font-size: 14px; font-weight: 700; color: ${recHex};">${recLabel(fb.overall_recommendation)}</div></div>
+          <div style="text-align: center;"><div style="font-size: 10px; color: #666; text-transform: uppercase; font-weight: 600;">Weighted</div>
+            <div style="font-size: 22px; font-weight: 800; color: #2563eb;">${overallPct}</div></div>
         </div></div>`;
 
-      for (const cat of SCORING_CATEGORIES) {
+      const cats = [...SCORING_CATEGORIES];
+      const mid = Math.ceil(cats.length / 2);
+      const col1 = cats.slice(0, mid);
+      const col2 = cats.slice(mid);
+
+      function buildCatCard(cat: typeof cats[0]): string {
         const catAvg = avgScore(fb, cat.subcriteria.map((s) => s.key));
         const pct = scoreToPercent(catAvg);
         const color = catAvg && catAvg >= 4 ? "#16a34a" : catAvg && catAvg >= 3 ? "#d97706" : catAvg ? "#dc2626" : "#999";
-        const barWidth = catAvg ? Math.round((catAvg / 5) * 100) : 0;
-
-        html += `<div style="margin-bottom: 18px;">`;
-        html += `<div style="display: flex; align-items: center; justify-content: space-between; padding: 8px 12px; background: #1e293b; border-radius: 6px 6px 0 0;">
-          <div style="font-size: 13px; font-weight: 700; color: #fff;">${cat.label}</div>
-          <div style="display: flex; align-items: center; gap: 8px;">
-            <span style="font-size: 10px; color: #94a3b8;">Weight: ${Math.round(cat.weight * 100)}%</span>
-            <span style="font-size: 14px; font-weight: 800; color: ${color === "#999" ? "#94a3b8" : color};">${pct}</span>
+        let card = `<div style="margin-bottom: 14px;">`;
+        card += `<div style="display: flex; align-items: center; justify-content: space-between; padding: 7px 10px; background: #1e293b; border-radius: 6px 6px 0 0;">
+          <div style="font-size: 12px; font-weight: 700; color: #fff;">${cat.label}</div>
+          <div style="display: flex; align-items: center; gap: 6px;">
+            <span style="font-size: 9px; color: #94a3b8;">Weight: ${Math.round(cat.weight * 100)}%</span>
+            <span style="font-size: 13px; font-weight: 800; color: ${color === "#999" ? "#94a3b8" : color};">${pct}</span>
           </div></div>`;
-
-        html += `<div style="background: #f8fafc; border: 1px solid #e2e8f0; border-top: none; border-radius: 0 0 6px 6px; padding: 10px 12px;">`;
+        card += `<div style="background: #f8fafc; border: 1px solid #e2e8f0; border-top: none; border-radius: 0 0 6px 6px; padding: 8px 10px;">`;
         for (const sc of cat.subcriteria) {
           const val = fb[sc.key] as number | null;
           const isNA = val === -1;
           const display = isNA ? "N/A" : val ? `${val}/5` : "--";
           const scPct = val && val > 0 ? Math.round((val / 5) * 100) : 0;
           const scColor = val && val >= 4 ? "#16a34a" : val && val >= 3 ? "#d97706" : val && val > 0 ? "#dc2626" : "#ccc";
-
-          html += `<div style="display: flex; align-items: center; gap: 10px; padding: 5px 0; border-bottom: 1px solid #f1f5f9;">
-            <div style="width: 260px; font-size: 12px; color: #555;">${sc.label}</div>
-            <div style="flex: 1; background: #e2e8f0; border-radius: 4px; height: 8px; overflow: hidden;">
+          card += `<div style="display: flex; align-items: center; gap: 8px; padding: 4px 0; border-bottom: 1px solid #f1f5f9;">
+            <div style="width: 220px; font-size: 11px; color: #555; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${sc.label}</div>
+            <div style="flex: 1; background: #e2e8f0; border-radius: 4px; height: 7px; overflow: hidden;">
               <div style="width: ${isNA ? 0 : scPct}%; height: 100%; background: ${scColor}; border-radius: 4px;"></div>
             </div>
-            <div style="width: 40px; text-align: right; font-size: 12px; font-weight: 600; color: ${isNA ? "#999" : scColor};">${display}</div>
+            <div style="width: 36px; text-align: right; font-size: 11px; font-weight: 600; color: ${isNA ? "#999" : scColor};">${display}</div>
           </div>`;
         }
-        html += `</div>`;
-
-        html += `<div style="height: 4px; background: #e2e8f0; border-radius: 0 0 6px 6px; overflow: hidden;">
-          <div style="width: ${barWidth}%; height: 100%; background: ${color};"></div></div>`;
-        html += `</div>`;
+        card += `</div></div>`;
+        return card;
       }
-      html += `</div>`;
 
-      await renderHtmlToPng(html, `Breakdown-${filePrefix(fb)}.png`);
+      html += `<div style="display: flex; gap: 20px;">`;
+      html += `<div style="flex: 1;">${col1.map(buildCatCard).join("")}</div>`;
+      html += `<div style="flex: 1;">${col2.map(buildCatCard).join("")}</div>`;
+      html += `</div></div>`;
+
+      await renderHtmlToPng(html, `Breakdown-${filePrefix(fb)}.png`, W);
     } catch (err) { console.error("Breakdown PNG error:", err); }
     setDownloading(null);
   }
