@@ -524,6 +524,24 @@ export default function DashboardPage() {
       html += `</div>`;
     }
 
+    const takeaways: string[] = [];
+    if (fb.overall_comments && typeof fb.overall_comments === "string") {
+      takeaways.push(fb.overall_comments as string);
+    }
+    for (const cat of SCORING_CATEGORIES) {
+      const comment = fb[cat.commentKey] as string | null;
+      if (comment) takeaways.push(`<b>${cat.label}:</b> ${comment}`);
+    }
+    if (takeaways.length > 0) {
+      html += `<div data-section style="margin-top: 20px; border-top: 1px solid #e2e8f0; padding-top: 16px;">
+        <h3 style="font-size: 14px; font-weight: 700; margin: 0 0 12px 0;">Key Takeaways for Greenhouse</h3>
+        <ul style="margin: 0; padding-left: 20px; font-size: 12px; line-height: 1.7; color: #333;">`;
+      for (const t of takeaways) {
+        html += `<li style="margin-bottom: 6px;">${t}</li>`;
+      }
+      html += `</ul></div>`;
+    }
+
     html += `</div>`;
     return html;
   }
