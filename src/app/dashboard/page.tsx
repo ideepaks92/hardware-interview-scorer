@@ -479,8 +479,8 @@ export default function DashboardPage() {
       html += `<div style="display: flex; padding: 8px 10px; font-size: 12px; border-bottom: 1px solid #e2e8f0; align-items: center;">
         <div style="width: 180px;"><div style="font-weight: 600;">${fb.candidate_name}</div><div style="font-size: 10px; color: #999;">${fb.candidate_position || ""}</div></div>
         <div style="width: 70px; text-align: center; color: #666;">${formatShortDate(fb.interview_date)}</div>
-        <div style="width: 80px; text-align: center;"><span style="background: ${hexToRgba(recHex, 0.13)}; color: ${recHex}; padding: 2px 8px; border-radius: 10px; font-size: 10px; font-weight: 600;">${recLabel(fb.overall_recommendation)}</span></div>
-        <div style="width: 70px; text-align: center;"><span style="background: #dbeafe; color: #2563eb; padding: 2px 8px; border-radius: 4px; font-weight: 700; font-size: 12px;">${overallPct}</span></div>`;
+        <div style="width: 80px; display: flex; justify-content: center; align-items: center;"><div style="background: ${hexToRgba(recHex, 0.13)}; color: ${recHex}; padding: 2px 10px; border-radius: 10px; font-size: 10px; font-weight: 600; text-align: center; line-height: 1.4;">${recLabel(fb.overall_recommendation)}</div></div>
+        <div style="width: 70px; display: flex; justify-content: center; align-items: center;"><div style="background: #dbeafe; color: #2563eb; padding: 2px 10px; border-radius: 4px; font-weight: 700; font-size: 12px; text-align: center; line-height: 1.4;">${overallPct}</div></div>`;
       for (const score of catScores) {
         const pct = scoreToPercent(score);
         const color = score && score >= 4 ? "#16a34a" : score && score >= 3 ? "#d97706" : score ? "#dc2626" : "#999";
