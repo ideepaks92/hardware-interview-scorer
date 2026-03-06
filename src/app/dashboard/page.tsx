@@ -2,7 +2,8 @@
 
 import { useEffect, useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
-import { SCORING_CATEGORIES } from "@/lib/scoring";
+import { SCORING_CATEGORIES, computeWeightedOverall } from "@/lib/scoring";
+import { PROBLEM_STATEMENTS } from "@/lib/problems";
 
 interface Interviewer {
   id: string;
@@ -30,7 +31,8 @@ interface Feedback {
 }
 
 function ScorePill({ score }: { score: number | null }) {
-  if (score === null || score === undefined) return <span className="text-gray-300">--</span>;
+  if (score === null || score === undefined)
+    return <span className="text-gray-300">--</span>;
   const colors =
     score >= 4
       ? "bg-emerald-100 text-emerald-800"
@@ -38,18 +40,37 @@ function ScorePill({ score }: { score: number | null }) {
         ? "bg-amber-100 text-amber-800"
         : "bg-red-100 text-red-800";
   return (
-    <span className={`inline-flex items-center justify-center w-8 h-8 rounded-full text-sm font-semibold ${colors}`}>
+    <span
+      className={`inline-flex items-center justify-center w-8 h-8 rounded-full text-sm font-semibold ${colors}`}
+    >
       {score}
     </span>
   );
 }
 
+function parseProblemTags(raw: string | number | null | undefined): string[] {
+  if (!raw || typeof raw !== "string") return [];
+  try {
+    const ids = JSON.parse(raw) as string[];
+    return ids
+      .map((id) => PROBLEM_STATEMENTS.find((p) => p.id === id)?.title)
+      .filter((t): t is string => !!t);
+  } catch {
+    return [];
+  }
+}
+
 function avgScore(feedback: Feedback, keys: string[]): number | null {
   const vals = keys
     .map((k) => feedback[k])
-    .filter((v): v is number => typeof v === "number");
+    .filter((v): v is number => typeof v === "number" && v > 0);
   if (vals.length === 0) return null;
   return Math.round((vals.reduce((a, b) => a + b, 0) / vals.length) * 10) / 10;
+}
+
+function weightedOverallFromFeedback(fb: Feedback): number | null {
+  const score = computeWeightedOverall(fb as Record<string, number | string | null>);
+  return score > 0 ? Math.round(score * 10) / 10 : null;
 }
 
 export default function DashboardPage() {
@@ -62,7 +83,9 @@ export default function DashboardPage() {
   const [newCandidateName, setNewCandidateName] = useState("");
   const [newCandidatePosition, setNewCandidatePosition] = useState("");
   const [resumeFile, setResumeFile] = useState<File | null>(null);
-  const [activeTab, setActiveTab] = useState<"my-feedback" | "compare">("my-feedback");
+  const [activeTab, setActiveTab] = useState<"my-feedback" | "compare">(
+    "my-feedback"
+  );
   const [selectedCandidates, setSelectedCandidates] = useState<string[]>([]);
 
   useEffect(() => {
@@ -124,7 +147,6 @@ export default function DashboardPage() {
 
   return (
     <div className="min-h-screen">
-      {/* Header */}
       <header className="bg-white border-b border-border sticky top-0 z-10">
         <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
           <div className="flex items-center gap-3">
@@ -132,8 +154,12 @@ export default function DashboardPage() {
               IS
             </div>
             <div>
-              <h1 className="font-bold text-lg leading-tight">Interview Scorer</h1>
-              <p className="text-xs text-muted">Hardware Engineering Assessment</p>
+              <h1 className="font-bold text-lg leading-tight">
+                Interview Scorer
+              </h1>
+              <p className="text-xs text-muted">
+                Hardware Engineering Assessment
+              </p>
             </div>
           </div>
           <div className="flex items-center gap-4">
@@ -152,7 +178,6 @@ export default function DashboardPage() {
       </header>
 
       <main className="max-w-7xl mx-auto px-6 py-8">
-        {/* Action bar */}
         <div className="flex items-center justify-between mb-8">
           <div className="flex gap-1 bg-gray-100 rounded-lg p-1">
             <button
@@ -229,7 +254,9 @@ export default function DashboardPage() {
                   <input
                     type="file"
                     accept=".pdf,.doc,.docx"
-                    onChange={(e) => setResumeFile(e.target.files?.[0] || null)}
+                    onChange={(e) =>
+                      setResumeFile(e.target.files?.[0] || null)
+                    }
                     className="w-full text-sm"
                   />
                 </div>
@@ -258,7 +285,9 @@ export default function DashboardPage() {
           <div className="space-y-6">
             {feedbacks.length === 0 ? (
               <div className="bg-white border border-border rounded-2xl p-12 text-center">
-                <p className="text-muted text-lg mb-2">No feedback submitted yet</p>
+                <p className="text-muted text-lg mb-2">
+                  No feedback submitted yet
+                </p>
                 <p className="text-sm text-muted">
                   Click &quot;+ New Feedback&quot; to score your first candidate.
                 </p>
@@ -269,33 +298,80 @@ export default function DashboardPage() {
                   <table className="w-full text-sm">
                     <thead>
                       <tr className="bg-gray-50 border-b border-border">
-                        <th className="text-left px-4 py-3 font-semibold">Candidate</th>
-                        <th className="text-left px-4 py-3 font-semibold">Position</th>
-                        <th className="text-left px-4 py-3 font-semibold">Date</th>
+                        <th className="text-left px-4 py-3 font-semibold">
+                          Candidate
+                        </th>
+                        <th className="text-left px-4 py-3 font-semibold">
+                          Position
+                        </th>
+                        <th className="text-left px-4 py-3 font-semibold">
+                          Date
+                        </th>
+                        <th className="text-left px-4 py-3 font-semibold">
+                          Problems
+                        </th>
                         {SCORING_CATEGORIES.map((cat) => (
-                          <th key={cat.key} className="text-center px-3 py-3 font-semibold whitespace-nowrap">
-                            {cat.label}
+                          <th
+                            key={cat.key}
+                            className="text-center px-3 py-3 font-semibold whitespace-nowrap"
+                          >
+                            <div>{cat.label}</div>
+                            <div className="text-[10px] font-normal text-muted">
+                              {Math.round(cat.weight * 100)}%
+                            </div>
                           </th>
                         ))}
-                        <th className="text-center px-3 py-3 font-semibold">Overall</th>
-                        <th className="text-center px-3 py-3 font-semibold">Recommendation</th>
+                        <th className="text-center px-3 py-3 font-semibold">
+                          Weighted
+                        </th>
+                        <th className="text-center px-3 py-3 font-semibold">
+                          Rec
+                        </th>
                       </tr>
                     </thead>
                     <tbody>
                       {feedbacks.map((fb) => {
                         const catScores = SCORING_CATEGORIES.map((cat) =>
-                          avgScore(fb, cat.subcriteria.map((s) => s.key))
+                          avgScore(
+                            fb,
+                            cat.subcriteria.map((s) => s.key)
+                          )
                         );
-                        const validScores = catScores.filter((s): s is number => s !== null);
-                        const overall =
-                          validScores.length > 0
-                            ? Math.round((validScores.reduce((a, b) => a + b, 0) / validScores.length) * 10) / 10
-                            : null;
+                        const overall = weightedOverallFromFeedback(fb);
                         return (
-                          <tr key={fb.id} className="border-b border-border hover:bg-gray-50">
-                            <td className="px-4 py-3 font-medium">{fb.candidate_name}</td>
-                            <td className="px-4 py-3 text-muted">{fb.candidate_position}</td>
-                            <td className="px-4 py-3 text-muted">{fb.interview_date}</td>
+                          <tr
+                            key={fb.id}
+                            className="border-b border-border hover:bg-gray-50"
+                          >
+                            <td className="px-4 py-3 font-medium">
+                              {fb.candidate_name}
+                            </td>
+                            <td className="px-4 py-3 text-muted">
+                              {fb.candidate_position}
+                            </td>
+                            <td className="px-4 py-3 text-muted">
+                              {fb.interview_date}
+                            </td>
+                            <td className="px-4 py-3">
+                              <div className="flex flex-wrap gap-1">
+                                {parseProblemTags(fb.problem_statements).map(
+                                  (t) => (
+                                    <span
+                                      key={t}
+                                      className="inline-block px-2 py-0.5 rounded bg-indigo-50 text-indigo-700 text-xs font-medium"
+                                    >
+                                      {t}
+                                    </span>
+                                  )
+                                )}
+                                {parseProblemTags(fb.problem_statements)
+                                  .length === 0 && (
+                                  <span className="text-gray-300 text-xs">
+                                    --
+                                  </span>
+                                )}
+                              </div>
+                            </td>
                             {catScores.map((score, i) => (
                               <td key={i} className="text-center px-3 py-3">
                                 <ScorePill score={score} />
@@ -320,7 +396,11 @@ export default function DashboardPage() {
                                           : "bg-gray-100 text-gray-600"
                                 }`}
                               >
-                                {typeof fb.overall_recommendation === "string" ? fb.overall_recommendation.replace("_", " ").toUpperCase() : "--"}
+                                {typeof fb.overall_recommendation === "string"
+                                  ? fb.overall_recommendation
+                                      .replace("_", " ")
+                                      .toUpperCase()
+                                  : "--"}
                               </span>
                             </td>
                           </tr>
@@ -338,18 +418,28 @@ export default function DashboardPage() {
                 <h3 className="font-bold text-lg mb-4">Detailed Comments</h3>
                 <div className="space-y-6">
                   {feedbacks.map((fb) => (
-                    <div key={fb.id} className="border-b border-border pb-6 last:border-0 last:pb-0">
+                    <div
+                      key={fb.id}
+                      className="border-b border-border pb-6 last:border-0 last:pb-0"
+                    >
                       <div className="flex items-center gap-2 mb-3">
-                        <span className="font-semibold">{fb.candidate_name}</span>
+                        <span className="font-semibold">
+                          {fb.candidate_name}
+                        </span>
                         <span className="text-muted">—</span>
-                        <span className="text-sm text-muted">{fb.interview_date}</span>
+                        <span className="text-sm text-muted">
+                          {fb.interview_date}
+                        </span>
                       </div>
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                         {SCORING_CATEGORIES.map((cat) => {
                           const comment = fb[cat.commentKey] as string | null;
                           if (!comment) return null;
                           return (
-                            <div key={cat.key} className="bg-gray-50 rounded-lg p-3">
+                            <div
+                              key={cat.key}
+                              className="bg-gray-50 rounded-lg p-3"
+                            >
                               <p className="text-xs font-semibold text-muted uppercase mb-1">
                                 {cat.label}
                               </p>
@@ -362,7 +452,9 @@ export default function DashboardPage() {
                             <p className="text-xs font-semibold text-blue-600 uppercase mb-1">
                               Overall Notes
                             </p>
-                            <p className="text-sm">{fb.overall_comments as string}</p>
+                            <p className="text-sm">
+                              {fb.overall_comments as string}
+                            </p>
                           </div>
                         )}
                       </div>
@@ -377,7 +469,6 @@ export default function DashboardPage() {
         {/* Compare Candidates Tab */}
         {activeTab === "compare" && (
           <div className="space-y-6">
-            {/* Candidate selector */}
             <div className="bg-white border border-border rounded-2xl p-6">
               <h3 className="font-bold mb-3">Select Candidates to Compare</h3>
               <div className="flex flex-wrap gap-2">
@@ -410,9 +501,14 @@ export default function DashboardPage() {
                           Category
                         </th>
                         {comparisonCandidates.map((c) => (
-                          <th key={c.id} className="text-center px-6 py-3 font-semibold">
+                          <th
+                            key={c.id}
+                            className="text-center px-6 py-3 font-semibold"
+                          >
                             <div>{c.name}</div>
-                            <div className="text-xs text-muted font-normal">{c.position}</div>
+                            <div className="text-xs text-muted font-normal">
+                              {c.position}
+                            </div>
                           </th>
                         ))}
                       </tr>
@@ -422,30 +518,52 @@ export default function DashboardPage() {
                         <>
                           <tr key={cat.key} className="bg-gray-50/50">
                             <td className="px-4 py-2 font-semibold text-accent sticky left-0 bg-gray-50/50">
-                              {cat.label}
+                              <div>{cat.label}</div>
+                              <div className="text-[10px] font-normal text-muted">
+                                {Math.round(cat.weight * 100)}% weight
+                              </div>
                             </td>
                             {comparisonCandidates.map((c) => {
                               const candidateFbs = allFeedbacks.filter(
                                 (f) => f.candidate_id === c.id
                               );
-                              const scores = candidateFbs.map((fb) =>
-                                avgScore(fb, cat.subcriteria.map((s) => s.key))
-                              ).filter((s): s is number => s !== null);
-                              const avg = scores.length > 0
-                                ? Math.round((scores.reduce((a, b) => a + b, 0) / scores.length) * 10) / 10
-                                : null;
+                              const scores = candidateFbs
+                                .map((fb) =>
+                                  avgScore(
+                                    fb,
+                                    cat.subcriteria.map((s) => s.key)
+                                  )
+                                )
+                                .filter((s): s is number => s !== null);
+                              const avg =
+                                scores.length > 0
+                                  ? Math.round(
+                                      (scores.reduce((a, b) => a + b, 0) /
+                                        scores.length) *
+                                        10
+                                    ) / 10
+                                  : null;
                               return (
-                                <td key={c.id} className="text-center px-6 py-2">
-                                  <span className="font-bold text-lg">{avg ?? "--"}</span>
+                                <td
+                                  key={c.id}
+                                  className="text-center px-6 py-2"
+                                >
+                                  <span className="font-bold text-lg">
+                                    {avg ?? "--"}
+                                  </span>
                                   <span className="text-xs text-muted ml-1">
-                                    ({scores.length} review{scores.length !== 1 ? "s" : ""})
+                                    ({scores.length} review
+                                    {scores.length !== 1 ? "s" : ""})
                                   </span>
                                 </td>
                               );
                             })}
                           </tr>
                           {cat.subcriteria.map((sc) => (
-                            <tr key={sc.key} className="border-b border-border/50">
+                            <tr
+                              key={sc.key}
+                              className="border-b border-border/50"
+                            >
                               <td className="px-4 py-2 pl-8 text-muted sticky left-0 bg-white">
                                 {sc.label}
                               </td>
@@ -455,12 +573,23 @@ export default function DashboardPage() {
                                 );
                                 const scores = candidateFbs
                                   .map((fb) => fb[sc.key])
-                                  .filter((v): v is number => typeof v === "number");
-                                const avg = scores.length > 0
-                                  ? Math.round((scores.reduce((a, b) => a + b, 0) / scores.length) * 10) / 10
-                                  : null;
+                                  .filter(
+                                    (v): v is number =>
+                                      typeof v === "number" && v > 0
+                                  );
+                                const avg =
+                                  scores.length > 0
+                                    ? Math.round(
+                                        (scores.reduce((a, b) => a + b, 0) /
+                                          scores.length) *
+                                          10
+                                      ) / 10
+                                    : null;
                                 return (
-                                  <td key={c.id} className="text-center px-6 py-2">
+                                  <td
+                                    key={c.id}
+                                    className="text-center px-6 py-2"
+                                  >
                                     <ScorePill score={avg} />
                                   </td>
                                 );
@@ -469,27 +598,34 @@ export default function DashboardPage() {
                           ))}
                         </>
                       ))}
-                      {/* Overall row */}
+                      {/* Weighted overall row */}
                       <tr className="bg-blue-50 border-t-2 border-accent">
                         <td className="px-4 py-3 font-bold sticky left-0 bg-blue-50">
-                          Overall Average
+                          Weighted Overall
                         </td>
                         {comparisonCandidates.map((c) => {
                           const candidateFbs = allFeedbacks.filter(
                             (f) => f.candidate_id === c.id
                           );
-                          const allKeys = SCORING_CATEGORIES.flatMap((cat) =>
-                            cat.subcriteria.map((s) => s.key)
-                          );
-                          const allScores = candidateFbs.flatMap((fb) =>
-                            allKeys.map((k) => fb[k]).filter((v): v is number => typeof v === "number")
-                          );
-                          const overall = allScores.length > 0
-                            ? Math.round((allScores.reduce((a, b) => a + b, 0) / allScores.length) * 10) / 10
-                            : null;
+                          const overalls = candidateFbs
+                            .map((fb) => weightedOverallFromFeedback(fb))
+                            .filter((s): s is number => s !== null);
+                          const avg =
+                            overalls.length > 0
+                              ? Math.round(
+                                  (overalls.reduce((a, b) => a + b, 0) /
+                                    overalls.length) *
+                                    10
+                                ) / 10
+                              : null;
                           return (
-                            <td key={c.id} className="text-center px-6 py-3">
-                              <span className="text-xl font-bold text-accent">{overall ?? "--"}</span>
+                            <td
+                              key={c.id}
+                              className="text-center px-6 py-3"
+                            >
+                              <span className="text-xl font-bold text-accent">
+                                {avg ?? "--"}
+                              </span>
                             </td>
                           );
                         })}
@@ -503,29 +639,62 @@ export default function DashboardPage() {
             {/* Comparison comments */}
             {comparisonCandidates.length > 0 && (
               <div className="bg-white border border-border rounded-2xl p-6">
-                <h3 className="font-bold text-lg mb-4">All Interviewer Comments</h3>
+                <h3 className="font-bold text-lg mb-4">
+                  All Interviewer Comments
+                </h3>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   {comparisonCandidates.map((c) => {
                     const candidateFbs = allFeedbacks.filter(
                       (f) => f.candidate_id === c.id
                     );
                     return (
-                      <div key={c.id} className="border border-border rounded-xl p-4">
-                        <h4 className="font-semibold text-lg mb-1">{c.name}</h4>
+                      <div
+                        key={c.id}
+                        className="border border-border rounded-xl p-4"
+                      >
+                        <h4 className="font-semibold text-lg mb-1">
+                          {c.name}
+                        </h4>
                         <p className="text-xs text-muted mb-3">{c.position}</p>
                         {candidateFbs.length === 0 ? (
                           <p className="text-sm text-muted">No feedback yet</p>
                         ) : (
                           <div className="space-y-4">
                             {candidateFbs.map((fb) => (
-                              <div key={fb.id} className="bg-gray-50 rounded-lg p-3">
+                              <div
+                                key={fb.id}
+                                className="bg-gray-50 rounded-lg p-3"
+                              >
                                 <div className="flex items-center gap-2 mb-2">
-                                  <span className="text-sm font-medium">{fb.interviewer_name}</span>
-                                  <span className="text-xs text-muted">({fb.interviewer_role})</span>
-                                  <span className="text-xs text-muted ml-auto">{fb.interview_date}</span>
+                                  <span className="text-sm font-medium">
+                                    {fb.interviewer_name}
+                                  </span>
+                                  <span className="text-xs text-muted">
+                                    ({fb.interviewer_role})
+                                  </span>
+                                  <span className="text-xs text-muted ml-auto">
+                                    {fb.interview_date}
+                                  </span>
                                 </div>
+                                {parseProblemTags(fb.problem_statements)
+                                  .length > 0 && (
+                                  <div className="flex flex-wrap gap-1 mb-2">
+                                    {parseProblemTags(
+                                      fb.problem_statements
+                                    ).map((t) => (
+                                      <span
+                                        key={t}
+                                        className="inline-block px-2 py-0.5 rounded bg-indigo-50 text-indigo-700 text-xs font-medium"
+                                      >
+                                        {t}
+                                      </span>
+                                    ))}
+                                  </div>
+                                )}
                                 {SCORING_CATEGORIES.map((cat) => {
-                                  const comment = fb[cat.commentKey] as string | null;
+                                  const comment = fb[cat.commentKey] as
+                                    | string
+                                    | null;
                                   if (!comment) return null;
                                   return (
                                     <div key={cat.key} className="mb-2">
@@ -541,7 +710,9 @@ export default function DashboardPage() {
                                     <span className="text-xs font-semibold text-blue-600 uppercase">
                                       Overall:
                                     </span>{" "}
-                                    <span className="text-sm">{fb.overall_comments as string}</span>
+                                    <span className="text-sm">
+                                      {fb.overall_comments as string}
+                                    </span>
                                   </div>
                                 )}
                               </div>

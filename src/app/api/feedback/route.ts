@@ -1,6 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import getDb from "@/lib/db";
 import { v4 as uuidv4 } from "uuid";
+import { SCORING_CATEGORIES } from "@/lib/scoring";
+
+const SCORE_KEYS = SCORING_CATEGORIES.flatMap((cat) =>
+  cat.subcriteria.map((sc) => sc.key)
+);
+const COMMENT_KEYS = SCORING_CATEGORIES.map((cat) => cat.commentKey);
 
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
@@ -49,60 +55,36 @@ export async function POST(req: NextRequest) {
   const id = uuidv4();
   const db = getDb();
 
-  db.prepare(`
-    INSERT INTO feedback (
-      id, interviewer_id, candidate_id, interview_date,
-      manufacturing, ta_gdt, materials_selection, mechanism_machine_design, technical_comments,
-      hand_calc_fea, validation_test_planning, design_analysis_comments,
-      collaboration, no_asshole_behavior, respect, honesty, cultural_fit_comments,
-      conflict_resolution, communication_style, async_vs_inperson, communication_comments,
-      fast_moving_teams, rapid_prototyping, working_mindset_comments,
-      intuition, intuition_comments,
-      cross_functional_awareness, cross_functional_comments,
-      overall_recommendation, overall_comments
-    ) VALUES (
-      ?, ?, ?, ?,
-      ?, ?, ?, ?, ?,
-      ?, ?, ?,
-      ?, ?, ?, ?, ?,
-      ?, ?, ?, ?,
-      ?, ?, ?,
-      ?, ?,
-      ?, ?,
-      ?, ?
-    )
-  `).run(
+  const allColumns = [
+    "id",
+    "interviewer_id",
+    "candidate_id",
+    "interview_date",
+    "problem_statements",
+    ...SCORE_KEYS,
+    ...COMMENT_KEYS,
+    "overall_recommendation",
+    "overall_comments",
+  ];
+
+  const placeholders = allColumns.map(() => "?").join(", ");
+  const columnList = allColumns.join(", ");
+
+  const values = [
     id,
     body.interviewer_id,
     body.candidate_id,
     body.interview_date || new Date().toISOString().split("T")[0],
-    body.manufacturing || null,
-    body.ta_gdt || null,
-    body.materials_selection || null,
-    body.mechanism_machine_design || null,
-    body.technical_comments || null,
-    body.hand_calc_fea || null,
-    body.validation_test_planning || null,
-    body.design_analysis_comments || null,
-    body.collaboration || null,
-    body.no_asshole_behavior || null,
-    body.respect || null,
-    body.honesty || null,
-    body.cultural_fit_comments || null,
-    body.conflict_resolution || null,
-    body.communication_style || null,
-    body.async_vs_inperson || null,
-    body.communication_comments || null,
-    body.fast_moving_teams || null,
-    body.rapid_prototyping || null,
-    body.working_mindset_comments || null,
-    body.intuition || null,
-    body.intuition_comments || null,
-    body.cross_functional_awareness || null,
-    body.cross_functional_comments || null,
+    body.problem_statements || null,
+    ...SCORE_KEYS.map((k) => body[k] ?? null),
+    ...COMMENT_KEYS.map((k) => body[k] || null),
     body.overall_recommendation || null,
-    body.overall_comments || null
-  );
+    body.overall_comments || null,
+  ];
+
+  db.prepare(
+    `INSERT INTO feedback (${columnList}) VALUES (${placeholders})`
+  ).run(...values);
 
   const feedback = db.prepare("SELECT * FROM feedback WHERE id = ?").get(id);
   return NextResponse.json(feedback);

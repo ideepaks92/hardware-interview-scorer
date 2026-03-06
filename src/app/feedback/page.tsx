@@ -1,8 +1,9 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { useRouter } from "next/navigation";
-import { SCORING_CATEGORIES } from "@/lib/scoring";
+import { SCORING_CATEGORIES, NA_SCORE } from "@/lib/scoring";
+import { PROBLEM_STATEMENTS } from "@/lib/problems";
 
 interface Interviewer {
   id: string;
@@ -16,14 +17,6 @@ interface Candidate {
   name: string;
   position: string;
 }
-
-const SCORE_LABELS: Record<number, string> = {
-  1: "Poor",
-  2: "Below Avg",
-  3: "Average",
-  4: "Good",
-  5: "Excellent",
-};
 
 const RECOMMENDATION_OPTIONS = [
   { value: "strong_yes", label: "Strong Yes", color: "bg-emerald-500" },
@@ -41,6 +34,10 @@ export default function FeedbackPage() {
   const [interviewDate, setInterviewDate] = useState(
     new Date().toISOString().split("T")[0]
   );
+  const [selectedProblems, setSelectedProblems] = useState<string[]>([]);
+  const [expandedProblem, setExpandedProblem] = useState<string | null>(null);
+  const [problemDropdownOpen, setProblemDropdownOpen] = useState(false);
+  const dropdownRef = useRef<HTMLDivElement>(null);
   const [scores, setScores] = useState<Record<string, number>>({});
   const [comments, setComments] = useState<Record<string, string>>({});
   const [recommendation, setRecommendation] = useState("");
@@ -61,8 +58,38 @@ export default function FeedbackPage() {
       .then(setCandidates);
   }, [router]);
 
+  useEffect(() => {
+    function handleClickOutside(e: MouseEvent) {
+      if (
+        dropdownRef.current &&
+        !dropdownRef.current.contains(e.target as Node)
+      ) {
+        setProblemDropdownOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  function toggleProblem(id: string) {
+    setSelectedProblems((prev) =>
+      prev.includes(id) ? prev.filter((p) => p !== id) : [...prev, id]
+    );
+  }
+
   function setScore(key: string, value: number) {
     setScores((prev) => ({ ...prev, [key]: value }));
+  }
+
+  function clearScore(key: string) {
+    setScores((prev) => {
+      if (prev[key] === NA_SCORE) {
+        const next = { ...prev };
+        delete next[key];
+        return next;
+      }
+      return { ...prev, [key]: NA_SCORE };
+    });
   }
 
   function setComment(key: string, value: string) {
@@ -78,13 +105,16 @@ export default function FeedbackPage() {
       interviewer_id: interviewer.id,
       candidate_id: selectedCandidate,
       interview_date: interviewDate,
+      problem_statements:
+        selectedProblems.length > 0 ? JSON.stringify(selectedProblems) : null,
       overall_recommendation: recommendation || null,
       overall_comments: overallComments || null,
     };
 
     SCORING_CATEGORIES.forEach((cat) => {
       cat.subcriteria.forEach((sc) => {
-        body[sc.key] = scores[sc.key] || null;
+        const val = scores[sc.key];
+        body[sc.key] = val !== undefined ? val : null;
       });
       body[cat.commentKey] = comments[cat.commentKey] || null;
     });
@@ -109,8 +139,18 @@ export default function FeedbackPage() {
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">
           <div className="w-16 h-16 rounded-full bg-emerald-100 flex items-center justify-center mx-auto mb-4">
-            <svg className="w-8 h-8 text-emerald-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+            <svg
+              className="w-8 h-8 text-emerald-600"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M5 13l4 4L19 7"
+              />
             </svg>
           </div>
           <h2 className="text-2xl font-bold mb-2">Feedback Submitted</h2>
@@ -122,7 +162,6 @@ export default function FeedbackPage() {
 
   return (
     <div className="min-h-screen bg-background">
-      {/* Header */}
       <header className="bg-white border-b border-border sticky top-0 z-10">
         <div className="max-w-4xl mx-auto px-6 py-4 flex items-center justify-between">
           <div className="flex items-center gap-3">
@@ -130,8 +169,18 @@ export default function FeedbackPage() {
               onClick={() => router.push("/dashboard")}
               className="text-muted hover:text-foreground transition-colors cursor-pointer"
             >
-              <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+              <svg
+                className="w-5 h-5"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M15 19l-7-7 7-7"
+                />
               </svg>
             </button>
             <h1 className="font-bold text-lg">New Interview Feedback</h1>
@@ -143,13 +192,18 @@ export default function FeedbackPage() {
         </div>
       </header>
 
-      <form onSubmit={handleSubmit} className="max-w-4xl mx-auto px-6 py-8 space-y-8">
-        {/* Candidate selection */}
+      <form
+        onSubmit={handleSubmit}
+        className="max-w-4xl mx-auto px-6 py-8 space-y-8"
+      >
+        {/* Interview Details */}
         <div className="bg-white border border-border rounded-2xl p-6">
           <h2 className="font-bold text-lg mb-4">Interview Details</h2>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm font-medium mb-1.5">Candidate</label>
+              <label className="block text-sm font-medium mb-1.5">
+                Candidate
+              </label>
               <select
                 value={selectedCandidate}
                 onChange={(e) => setSelectedCandidate(e.target.value)}
@@ -165,7 +219,9 @@ export default function FeedbackPage() {
               </select>
             </div>
             <div>
-              <label className="block text-sm font-medium mb-1.5">Interview Date</label>
+              <label className="block text-sm font-medium mb-1.5">
+                Interview Date
+              </label>
               <input
                 type="date"
                 value={interviewDate}
@@ -176,39 +232,316 @@ export default function FeedbackPage() {
           </div>
         </div>
 
+        {/* Problem Statements */}
+        <div className="bg-white border border-border rounded-2xl p-6">
+          <h2 className="font-bold text-lg mb-1">
+            Problem Statements Discussed
+          </h2>
+          <p className="text-sm text-muted mb-4">
+            Select which problems were given during the interview. Expand to view
+            the full brief.
+          </p>
+
+          <div className="relative" ref={dropdownRef}>
+            <button
+              type="button"
+              onClick={() => setProblemDropdownOpen((o) => !o)}
+              className="w-full flex items-center justify-between px-4 py-2.5 border border-border rounded-lg bg-white hover:bg-gray-50 transition-colors cursor-pointer text-left"
+            >
+              <span
+                className={selectedProblems.length === 0 ? "text-muted" : ""}
+              >
+                {selectedProblems.length === 0
+                  ? "Select problems..."
+                  : `${selectedProblems.length} problem${selectedProblems.length > 1 ? "s" : ""} selected`}
+              </span>
+              <svg
+                className={`w-4 h-4 text-muted transition-transform ${problemDropdownOpen ? "rotate-180" : ""}`}
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M19 9l-7 7-7-7"
+                />
+              </svg>
+            </button>
+
+            {problemDropdownOpen && (
+              <div className="absolute z-20 mt-1 w-full bg-white border border-border rounded-lg shadow-lg overflow-hidden">
+                {PROBLEM_STATEMENTS.map((ps) => (
+                  <button
+                    key={ps.id}
+                    type="button"
+                    onClick={() => toggleProblem(ps.id)}
+                    className="w-full flex items-center gap-3 px-4 py-3 hover:bg-gray-50 transition-colors cursor-pointer text-left border-b border-border last:border-0"
+                  >
+                    <div
+                      className={`w-5 h-5 rounded border-2 flex items-center justify-center flex-shrink-0 transition-colors ${
+                        selectedProblems.includes(ps.id)
+                          ? "bg-accent border-accent"
+                          : "border-gray-300"
+                      }`}
+                    >
+                      {selectedProblems.includes(ps.id) && (
+                        <svg
+                          className="w-3 h-3 text-white"
+                          fill="none"
+                          viewBox="0 0 24 24"
+                          stroke="currentColor"
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth={3}
+                            d="M5 13l4 4L19 7"
+                          />
+                        </svg>
+                      )}
+                    </div>
+                    <div>
+                      <div className="font-medium text-sm">{ps.title}</div>
+                      <div className="text-xs text-muted">{ps.tag}</div>
+                    </div>
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {selectedProblems.length > 0 && (
+            <div className="flex flex-wrap gap-2 mt-3">
+              {selectedProblems.map((pid) => {
+                const ps = PROBLEM_STATEMENTS.find((p) => p.id === pid);
+                if (!ps) return null;
+                return (
+                  <span
+                    key={pid}
+                    className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-accent-light text-accent text-sm font-medium"
+                  >
+                    {ps.title}
+                    <button
+                      type="button"
+                      onClick={() => toggleProblem(pid)}
+                      className="hover:text-red-600 transition-colors cursor-pointer"
+                    >
+                      <svg
+                        className="w-3.5 h-3.5"
+                        fill="none"
+                        viewBox="0 0 24 24"
+                        stroke="currentColor"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M6 18L18 6M6 6l12 12"
+                        />
+                      </svg>
+                    </button>
+                  </span>
+                );
+              })}
+            </div>
+          )}
+
+          {selectedProblems.length > 0 && (
+            <div className="mt-6 space-y-4">
+              {selectedProblems.map((pid) => {
+                const ps = PROBLEM_STATEMENTS.find((p) => p.id === pid);
+                if (!ps) return null;
+                const isExpanded = expandedProblem === pid;
+                return (
+                  <div
+                    key={pid}
+                    className="border border-border rounded-xl overflow-hidden"
+                  >
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setExpandedProblem(isExpanded ? null : pid)
+                      }
+                      className="w-full flex items-center justify-between px-5 py-3.5 bg-gray-50 hover:bg-gray-100 transition-colors cursor-pointer text-left"
+                    >
+                      <div>
+                        <span className="font-semibold text-sm">
+                          {ps.title}
+                        </span>
+                        <span className="ml-2 text-xs text-muted px-2 py-0.5 bg-white rounded-full border border-border">
+                          {ps.tag}
+                        </span>
+                      </div>
+                      <svg
+                        className={`w-4 h-4 text-muted transition-transform flex-shrink-0 ${isExpanded ? "rotate-180" : ""}`}
+                        fill="none"
+                        viewBox="0 0 24 24"
+                        stroke="currentColor"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M19 9l-7 7-7-7"
+                        />
+                      </svg>
+                    </button>
+
+                    {isExpanded && (
+                      <div className="px-5 py-4 space-y-6">
+                        <p className="text-sm text-muted italic">
+                          {ps.overview}
+                        </p>
+
+                        {ps.parts.map((part, idx) => (
+                          <div key={idx}>
+                            <h4 className="font-semibold text-sm mb-2 text-accent">
+                              {part.title}
+                            </h4>
+
+                            <div className="mb-3">
+                              <p className="text-xs font-semibold uppercase text-muted mb-1.5">
+                                Brief
+                              </p>
+                              <ul className="space-y-1">
+                                {part.brief.map((b, i) => (
+                                  <li key={i} className="flex gap-2 text-sm">
+                                    <span className="text-accent mt-1 flex-shrink-0">
+                                      &#8226;
+                                    </span>
+                                    <span>{b}</span>
+                                  </li>
+                                ))}
+                              </ul>
+                            </div>
+
+                            <details className="group">
+                              <summary className="text-xs font-semibold uppercase text-muted cursor-pointer hover:text-foreground transition-colors flex items-center gap-1">
+                                <svg
+                                  className="w-3 h-3 transition-transform group-open:rotate-90"
+                                  fill="none"
+                                  viewBox="0 0 24 24"
+                                  stroke="currentColor"
+                                >
+                                  <path
+                                    strokeLinecap="round"
+                                    strokeLinejoin="round"
+                                    strokeWidth={2}
+                                    d="M9 5l7 7-7 7"
+                                  />
+                                </svg>
+                                What to look for
+                              </summary>
+                              <ul className="mt-2 space-y-1.5">
+                                {part.evaluationNotes.map((note, i) => (
+                                  <li
+                                    key={i}
+                                    className="flex gap-2 text-sm text-muted"
+                                  >
+                                    <span className="text-amber-500 mt-1 flex-shrink-0">
+                                      &#9670;
+                                    </span>
+                                    <span>{note}</span>
+                                  </li>
+                                ))}
+                              </ul>
+                            </details>
+
+                            {idx < ps.parts.length - 1 && (
+                              <hr className="mt-5 border-border" />
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+
         {/* Scoring categories */}
         {SCORING_CATEGORIES.map((cat) => (
-          <div key={cat.key} className="bg-white border border-border rounded-2xl p-6">
-            <h2 className="font-bold text-lg mb-1">{cat.label}</h2>
-            <p className="text-sm text-muted mb-5">Rate each area from 1 (Poor) to 5 (Excellent)</p>
+          <div
+            key={cat.key}
+            className="bg-white border border-border rounded-2xl p-6"
+          >
+            <div className="flex items-center justify-between mb-1">
+              <h2 className="font-bold text-lg">{cat.label}</h2>
+              <span className="text-xs text-muted bg-gray-100 px-2 py-0.5 rounded-full">
+                Weight: {Math.round(cat.weight * 100)}%
+              </span>
+            </div>
 
-            <div className="space-y-5">
-              {cat.subcriteria.map((sc) => (
-                <div key={sc.key}>
-                  <label className="block text-sm font-medium mb-2">{sc.label}</label>
-                  <div className="flex gap-2">
-                    {[1, 2, 3, 4, 5].map((val) => (
+            <div className="space-y-6">
+              {cat.subcriteria.map((sc) => {
+                const isNA = scores[sc.key] === NA_SCORE;
+                return (
+                  <div key={sc.key}>
+                    <div className="flex items-start justify-between mb-2">
+                      <div>
+                        <label className="block text-sm font-medium">
+                          {sc.label}
+                        </label>
+                        <div className="flex flex-wrap gap-1.5 mt-1">
+                          {sc.doordashValues.map((v) => (
+                            <span
+                              key={v}
+                              className="inline-block px-2 py-0.5 rounded bg-blue-50 text-blue-600 text-[11px] font-semibold"
+                            >
+                              {v}
+                            </span>
+                          ))}
+                        </div>
+                      </div>
                       <button
-                        key={val}
                         type="button"
-                        onClick={() => setScore(sc.key, val)}
-                        className={`flex-1 py-2.5 rounded-lg text-sm font-medium border transition-all cursor-pointer ${
-                          scores[sc.key] === val
-                            ? val >= 4
-                              ? "bg-emerald-500 text-white border-emerald-500 shadow-sm"
-                              : val === 3
-                                ? "bg-amber-500 text-white border-amber-500 shadow-sm"
-                                : "bg-red-500 text-white border-red-500 shadow-sm"
-                            : "bg-white border-border hover:bg-gray-50 text-foreground"
+                        onClick={() => clearScore(sc.key)}
+                        className={`text-xs px-2.5 py-1 rounded-md border transition-colors cursor-pointer flex-shrink-0 ml-3 mt-0.5 ${
+                          isNA
+                            ? "bg-gray-200 border-gray-300 text-gray-600"
+                            : "bg-white border-border text-muted hover:bg-gray-50"
                         }`}
                       >
-                        <div className="text-base">{val}</div>
-                        <div className="text-[10px] opacity-75 hidden sm:block">{SCORE_LABELS[val]}</div>
+                        N/A
                       </button>
-                    ))}
+                    </div>
+
+                    {isNA ? (
+                      <div className="py-2.5 px-4 bg-gray-50 rounded-lg text-sm text-muted italic">
+                        Not assessed in this interview
+                      </div>
+                    ) : (
+                      <div className="flex gap-2">
+                        {[1, 2, 3, 4, 5].map((val) => (
+                          <button
+                            key={val}
+                            type="button"
+                            onClick={() => setScore(sc.key, val)}
+                            className={`flex-1 py-2.5 rounded-lg text-sm font-medium border transition-all cursor-pointer ${
+                              scores[sc.key] === val
+                                ? val >= 4
+                                  ? "bg-emerald-500 text-white border-emerald-500 shadow-sm"
+                                  : val === 3
+                                    ? "bg-amber-500 text-white border-amber-500 shadow-sm"
+                                    : "bg-red-500 text-white border-red-500 shadow-sm"
+                                : "bg-white border-border hover:bg-gray-50 text-foreground"
+                            }`}
+                          >
+                            <div className="text-base">{val}</div>
+                            <div className="text-[10px] opacity-75 hidden sm:block leading-tight px-0.5">
+                              {sc.scale[val - 1]}
+                            </div>
+                          </button>
+                        ))}
+                      </div>
+                    )}
                   </div>
-                </div>
-              ))}
+                );
+              })}
 
               <div>
                 <label className="block text-sm font-medium mb-1.5">
@@ -248,7 +581,9 @@ export default function FeedbackPage() {
           </div>
 
           <div>
-            <label className="block text-sm font-medium mb-1.5">Overall Notes</label>
+            <label className="block text-sm font-medium mb-1.5">
+              Overall Notes
+            </label>
             <textarea
               value={overallComments}
               onChange={(e) => setOverallComments(e.target.value)}

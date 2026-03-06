@@ -15,6 +15,20 @@ function getDb(): Database.Database {
   return db;
 }
 
+const NEW_COLUMNS = [
+  "dfm_process_selection",
+  "analytical_judgment",
+  "test_strategy",
+  "test_execution",
+  "collaboration_respect",
+  "receptivity_to_feedback",
+  "intellectual_honesty",
+  "decision_under_ambiguity",
+  "failure_mode_awareness",
+  "order_of_magnitude",
+  "cross_functional_integration",
+];
+
 function initializeDb(db: Database.Database) {
   db.exec(`
     CREATE TABLE IF NOT EXISTS interviewers (
@@ -40,43 +54,49 @@ function initializeDb(db: Database.Database) {
       candidate_id TEXT NOT NULL,
       interview_date TEXT NOT NULL,
 
-      -- Technical Expertise (1-5)
-      manufacturing INTEGER CHECK(manufacturing BETWEEN 1 AND 5),
-      ta_gdt INTEGER CHECK(ta_gdt BETWEEN 1 AND 5),
-      materials_selection INTEGER CHECK(materials_selection BETWEEN 1 AND 5),
-      mechanism_machine_design INTEGER CHECK(mechanism_machine_design BETWEEN 1 AND 5),
+      -- Technical Expertise (1-5, or -1 for N/A)
+      dfm_process_selection INTEGER,
+      ta_gdt INTEGER,
+      materials_selection INTEGER,
+      mechanism_machine_design INTEGER,
       technical_comments TEXT,
 
-      -- Design Analysis Skills (1-5)
-      hand_calc_fea INTEGER CHECK(hand_calc_fea BETWEEN 1 AND 5),
-      validation_test_planning INTEGER CHECK(validation_test_planning BETWEEN 1 AND 5),
+      -- Design Analysis Skills
+      analytical_judgment INTEGER,
+      test_strategy INTEGER,
+      test_execution INTEGER,
       design_analysis_comments TEXT,
 
-      -- Cultural Fit (1-5)
-      collaboration INTEGER CHECK(collaboration BETWEEN 1 AND 5),
-      no_asshole_behavior INTEGER CHECK(no_asshole_behavior BETWEEN 1 AND 5),
-      respect INTEGER CHECK(respect BETWEEN 1 AND 5),
-      honesty INTEGER CHECK(honesty BETWEEN 1 AND 5),
+      -- Cultural Fit
+      collaboration_respect INTEGER,
+      no_asshole_behavior INTEGER,
+      receptivity_to_feedback INTEGER,
+      intellectual_honesty INTEGER,
       cultural_fit_comments TEXT,
 
-      -- Communication (1-5)
-      conflict_resolution INTEGER CHECK(conflict_resolution BETWEEN 1 AND 5),
-      communication_style INTEGER CHECK(communication_style BETWEEN 1 AND 5),
-      async_vs_inperson INTEGER CHECK(async_vs_inperson BETWEEN 1 AND 5),
+      -- Communication
+      conflict_resolution INTEGER,
+      communication_style INTEGER,
+      async_vs_inperson INTEGER,
       communication_comments TEXT,
 
-      -- Working Mindset (1-5)
-      fast_moving_teams INTEGER CHECK(fast_moving_teams BETWEEN 1 AND 5),
-      rapid_prototyping INTEGER CHECK(rapid_prototyping BETWEEN 1 AND 5),
+      -- Working Mindset
+      fast_moving_teams INTEGER,
+      rapid_prototyping INTEGER,
+      decision_under_ambiguity INTEGER,
       working_mindset_comments TEXT,
 
-      -- Intuition (1-5)
-      intuition INTEGER CHECK(intuition BETWEEN 1 AND 5),
+      -- Intuition
+      failure_mode_awareness INTEGER,
+      order_of_magnitude INTEGER,
       intuition_comments TEXT,
 
-      -- Cross-functional Focus (1-5)
-      cross_functional_awareness INTEGER CHECK(cross_functional_awareness BETWEEN 1 AND 5),
+      -- Cross-functional Focus
+      cross_functional_awareness INTEGER,
+      cross_functional_integration INTEGER,
       cross_functional_comments TEXT,
+
+      problem_statements TEXT,
 
       overall_recommendation TEXT,
       overall_comments TEXT,
@@ -87,6 +107,28 @@ function initializeDb(db: Database.Database) {
       FOREIGN KEY (candidate_id) REFERENCES candidates(id)
     );
   `);
+
+  migrate(db);
+}
+
+function migrate(db: Database.Database) {
+  const columns = db
+    .prepare("PRAGMA table_info(feedback)")
+    .all() as { name: string }[];
+
+  if (columns.length === 0) return;
+
+  const existing = new Set(columns.map((c) => c.name));
+
+  for (const col of NEW_COLUMNS) {
+    if (!existing.has(col)) {
+      db.exec(`ALTER TABLE feedback ADD COLUMN ${col} INTEGER`);
+    }
+  }
+
+  if (!existing.has("problem_statements")) {
+    db.exec("ALTER TABLE feedback ADD COLUMN problem_statements TEXT");
+  }
 }
 
 export default getDb;
