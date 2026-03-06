@@ -18,13 +18,26 @@ export const metadata: Metadata = {
     "Structured interview scoring system for hardware engineering candidates",
 };
 
+const themeScript = `
+(function(){
+  try {
+    var t = localStorage.getItem('theme');
+    var d = t === 'dark' || (!t && window.matchMedia('(prefers-color-scheme: dark)').matches);
+    if (d) document.documentElement.classList.add('dark');
+  } catch(e) {}
+})();
+`;
+
 export default function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en">
+    <html lang="en" suppressHydrationWarning>
+      <head>
+        <script dangerouslySetInnerHTML={{ __html: themeScript }} />
+      </head>
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >

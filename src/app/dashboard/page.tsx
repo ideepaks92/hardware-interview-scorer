@@ -4,6 +4,7 @@ import { useEffect, useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { SCORING_CATEGORIES, computeWeightedOverall } from "@/lib/scoring";
 import { PROBLEM_STATEMENTS } from "@/lib/problems";
+import ThemeToggle from "@/components/ThemeToggle";
 
 interface Interviewer {
   id: string;
@@ -32,13 +33,13 @@ interface Feedback {
 
 function ScorePill({ score }: { score: number | null }) {
   if (score === null || score === undefined)
-    return <span className="text-gray-300">--</span>;
+    return <span className="text-muted">--</span>;
   const colors =
     score >= 4
-      ? "bg-emerald-100 text-emerald-800"
+      ? "bg-score-high-bg text-score-high-text"
       : score >= 3
-        ? "bg-amber-100 text-amber-800"
-        : "bg-red-100 text-red-800";
+        ? "bg-score-mid-bg text-score-mid-text"
+        : "bg-score-low-bg text-score-low-text";
   return (
     <span
       className={`inline-flex items-center justify-center w-8 h-8 rounded-full text-sm font-semibold ${colors}`}
@@ -147,7 +148,7 @@ export default function DashboardPage() {
 
   return (
     <div className="min-h-screen">
-      <header className="bg-white border-b border-border sticky top-0 z-10">
+      <header className="bg-surface border-b border-border sticky top-0 z-10">
         <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
           <div className="flex items-center gap-3">
             <div className="w-9 h-9 rounded-lg bg-accent text-white flex items-center justify-center font-bold text-sm">
@@ -163,6 +164,7 @@ export default function DashboardPage() {
             </div>
           </div>
           <div className="flex items-center gap-4">
+            <ThemeToggle />
             <div className="text-right">
               <p className="text-sm font-medium">{interviewer.name}</p>
               <p className="text-xs text-muted">{interviewer.role}</p>
@@ -179,12 +181,12 @@ export default function DashboardPage() {
 
       <main className="max-w-7xl mx-auto px-6 py-8">
         <div className="flex items-center justify-between mb-8">
-          <div className="flex gap-1 bg-gray-100 rounded-lg p-1">
+          <div className="flex gap-1 bg-surface-secondary rounded-lg p-1">
             <button
               onClick={() => setActiveTab("my-feedback")}
               className={`px-4 py-2 rounded-md text-sm font-medium transition-colors cursor-pointer ${
                 activeTab === "my-feedback"
-                  ? "bg-white text-foreground shadow-sm"
+                  ? "bg-surface text-foreground shadow-sm"
                   : "text-muted hover:text-foreground"
               }`}
             >
@@ -194,7 +196,7 @@ export default function DashboardPage() {
               onClick={() => setActiveTab("compare")}
               className={`px-4 py-2 rounded-md text-sm font-medium transition-colors cursor-pointer ${
                 activeTab === "compare"
-                  ? "bg-white text-foreground shadow-sm"
+                  ? "bg-surface text-foreground shadow-sm"
                   : "text-muted hover:text-foreground"
               }`}
             >
@@ -205,23 +207,22 @@ export default function DashboardPage() {
           <div className="flex gap-3">
             <button
               onClick={() => setShowAddCandidate(true)}
-              className="px-4 py-2 bg-white border border-border rounded-lg text-sm font-medium hover:bg-gray-50 transition-colors cursor-pointer"
+              className="px-4 py-2 bg-surface border border-border rounded-lg text-sm font-medium hover:bg-surface-secondary transition-colors cursor-pointer"
             >
               + Add Candidate
             </button>
             <button
               onClick={() => router.push("/feedback")}
-              className="px-4 py-2 bg-accent text-white rounded-lg text-sm font-medium hover:bg-blue-700 transition-colors cursor-pointer"
+              className="px-4 py-2 bg-accent text-white rounded-lg text-sm font-medium hover:bg-accent-hover transition-colors cursor-pointer"
             >
               + New Feedback
             </button>
           </div>
         </div>
 
-        {/* Add candidate modal */}
         {showAddCandidate && (
-          <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
-            <div className="bg-white rounded-2xl p-8 w-full max-w-md shadow-xl">
+          <div className="fixed inset-0 bg-overlay flex items-center justify-center z-50">
+            <div className="bg-surface rounded-2xl p-8 w-full max-w-md shadow-xl border border-border">
               <h2 className="text-xl font-bold mb-6">Add New Candidate</h2>
               <form onSubmit={addCandidate} className="space-y-4">
                 <div>
@@ -233,7 +234,7 @@ export default function DashboardPage() {
                     value={newCandidateName}
                     onChange={(e) => setNewCandidateName(e.target.value)}
                     required
-                    className="w-full px-4 py-2.5 border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-accent"
+                    className="w-full px-4 py-2.5 border border-border rounded-lg bg-background focus:outline-none focus:ring-2 focus:ring-accent"
                   />
                 </div>
                 <div>
@@ -244,7 +245,7 @@ export default function DashboardPage() {
                     type="text"
                     value={newCandidatePosition}
                     onChange={(e) => setNewCandidatePosition(e.target.value)}
-                    className="w-full px-4 py-2.5 border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-accent"
+                    className="w-full px-4 py-2.5 border border-border rounded-lg bg-background focus:outline-none focus:ring-2 focus:ring-accent"
                   />
                 </div>
                 <div>
@@ -263,14 +264,14 @@ export default function DashboardPage() {
                 <div className="flex gap-3 pt-2">
                   <button
                     type="submit"
-                    className="flex-1 py-2.5 bg-accent text-white rounded-lg font-medium hover:bg-blue-700 transition-colors cursor-pointer"
+                    className="flex-1 py-2.5 bg-accent text-white rounded-lg font-medium hover:bg-accent-hover transition-colors cursor-pointer"
                   >
                     Add Candidate
                   </button>
                   <button
                     type="button"
                     onClick={() => setShowAddCandidate(false)}
-                    className="flex-1 py-2.5 bg-gray-100 rounded-lg font-medium hover:bg-gray-200 transition-colors cursor-pointer"
+                    className="flex-1 py-2.5 bg-surface-secondary rounded-lg font-medium hover:bg-surface-tertiary transition-colors cursor-pointer"
                   >
                     Cancel
                   </button>
@@ -280,11 +281,10 @@ export default function DashboardPage() {
           </div>
         )}
 
-        {/* My Feedback Tab */}
         {activeTab === "my-feedback" && (
           <div className="space-y-6">
             {feedbacks.length === 0 ? (
-              <div className="bg-white border border-border rounded-2xl p-12 text-center">
+              <div className="bg-surface border border-border rounded-2xl p-12 text-center">
                 <p className="text-muted text-lg mb-2">
                   No feedback submitted yet
                 </p>
@@ -293,11 +293,11 @@ export default function DashboardPage() {
                 </p>
               </div>
             ) : (
-              <div className="bg-white border border-border rounded-2xl overflow-hidden">
+              <div className="bg-surface border border-border rounded-2xl overflow-hidden">
                 <div className="overflow-x-auto">
                   <table className="w-full text-sm">
                     <thead>
-                      <tr className="bg-gray-50 border-b border-border">
+                      <tr className="bg-surface-secondary border-b border-border">
                         <th className="text-left px-4 py-3 font-semibold">
                           Candidate
                         </th>
@@ -341,7 +341,7 @@ export default function DashboardPage() {
                         return (
                           <tr
                             key={fb.id}
-                            className="border-b border-border hover:bg-gray-50"
+                            className="border-b border-border hover:bg-surface-secondary transition-colors"
                           >
                             <td className="px-4 py-3 font-medium">
                               {fb.candidate_name}
@@ -358,7 +358,7 @@ export default function DashboardPage() {
                                   (t) => (
                                     <span
                                       key={t}
-                                      className="inline-block px-2 py-0.5 rounded bg-indigo-50 text-indigo-700 text-xs font-medium"
+                                      className="inline-block px-2 py-0.5 rounded bg-accent-light text-accent text-xs font-medium"
                                     >
                                       {t}
                                     </span>
@@ -366,7 +366,7 @@ export default function DashboardPage() {
                                 )}
                                 {parseProblemTags(fb.problem_statements)
                                   .length === 0 && (
-                                  <span className="text-gray-300 text-xs">
+                                  <span className="text-muted text-xs">
                                     --
                                   </span>
                                 )}
@@ -378,7 +378,7 @@ export default function DashboardPage() {
                               </td>
                             ))}
                             <td className="text-center px-3 py-3">
-                              <span className="inline-flex items-center justify-center w-10 h-8 rounded-full bg-blue-100 text-blue-800 text-sm font-bold">
+                              <span className="inline-flex items-center justify-center w-10 h-8 rounded-full bg-accent-light text-accent text-sm font-bold">
                                 {overall ?? "--"}
                               </span>
                             </td>
@@ -386,14 +386,14 @@ export default function DashboardPage() {
                               <span
                                 className={`inline-block px-3 py-1 rounded-full text-xs font-semibold ${
                                   fb.overall_recommendation === "strong_yes"
-                                    ? "bg-emerald-100 text-emerald-800"
+                                    ? "bg-score-high-bg text-score-high-text"
                                     : fb.overall_recommendation === "yes"
-                                      ? "bg-green-100 text-green-800"
+                                      ? "bg-score-high-bg text-score-high-text"
                                       : fb.overall_recommendation === "maybe"
-                                        ? "bg-amber-100 text-amber-800"
+                                        ? "bg-score-mid-bg text-score-mid-text"
                                         : fb.overall_recommendation === "no"
-                                          ? "bg-red-100 text-red-800"
-                                          : "bg-gray-100 text-gray-600"
+                                          ? "bg-score-low-bg text-score-low-text"
+                                          : "bg-surface-secondary text-muted"
                                 }`}
                               >
                                 {typeof fb.overall_recommendation === "string"
@@ -412,9 +412,8 @@ export default function DashboardPage() {
               </div>
             )}
 
-            {/* Comments section */}
             {feedbacks.length > 0 && (
-              <div className="bg-white border border-border rounded-2xl p-6">
+              <div className="bg-surface border border-border rounded-2xl p-6">
                 <h3 className="font-bold text-lg mb-4">Detailed Comments</h3>
                 <div className="space-y-6">
                   {feedbacks.map((fb) => (
@@ -438,7 +437,7 @@ export default function DashboardPage() {
                           return (
                             <div
                               key={cat.key}
-                              className="bg-gray-50 rounded-lg p-3"
+                              className="bg-surface-secondary rounded-lg p-3"
                             >
                               <p className="text-xs font-semibold text-muted uppercase mb-1">
                                 {cat.label}
@@ -448,8 +447,8 @@ export default function DashboardPage() {
                           );
                         })}
                         {fb.overall_comments && (
-                          <div className="bg-blue-50 rounded-lg p-3 md:col-span-2">
-                            <p className="text-xs font-semibold text-blue-600 uppercase mb-1">
+                          <div className="bg-accent-light rounded-lg p-3 md:col-span-2">
+                            <p className="text-xs font-semibold text-accent uppercase mb-1">
                               Overall Notes
                             </p>
                             <p className="text-sm">
@@ -466,10 +465,9 @@ export default function DashboardPage() {
           </div>
         )}
 
-        {/* Compare Candidates Tab */}
         {activeTab === "compare" && (
           <div className="space-y-6">
-            <div className="bg-white border border-border rounded-2xl p-6">
+            <div className="bg-surface border border-border rounded-2xl p-6">
               <h3 className="font-bold mb-3">Select Candidates to Compare</h3>
               <div className="flex flex-wrap gap-2">
                 {candidates.map((c) => (
@@ -479,7 +477,7 @@ export default function DashboardPage() {
                     className={`px-4 py-2 rounded-lg text-sm font-medium border transition-colors cursor-pointer ${
                       selectedCandidates.includes(c.id)
                         ? "bg-accent text-white border-accent"
-                        : "bg-white text-foreground border-border hover:bg-gray-50"
+                        : "bg-surface text-foreground border-border hover:bg-surface-secondary"
                     }`}
                   >
                     {c.name}
@@ -492,12 +490,12 @@ export default function DashboardPage() {
             </div>
 
             {comparisonCandidates.length > 0 && (
-              <div className="bg-white border border-border rounded-2xl overflow-hidden">
+              <div className="bg-surface border border-border rounded-2xl overflow-hidden">
                 <div className="overflow-x-auto">
                   <table className="w-full text-sm">
                     <thead>
-                      <tr className="bg-gray-50 border-b border-border">
-                        <th className="text-left px-4 py-3 font-semibold sticky left-0 bg-gray-50 z-[1]">
+                      <tr className="bg-surface-secondary border-b border-border">
+                        <th className="text-left px-4 py-3 font-semibold sticky left-0 bg-surface-secondary z-[1]">
                           Category
                         </th>
                         {comparisonCandidates.map((c) => (
@@ -516,8 +514,8 @@ export default function DashboardPage() {
                     <tbody>
                       {SCORING_CATEGORIES.map((cat) => (
                         <>
-                          <tr key={cat.key} className="bg-gray-50/50">
-                            <td className="px-4 py-2 font-semibold text-accent sticky left-0 bg-gray-50/50">
+                          <tr key={cat.key} className="bg-surface-secondary/50">
+                            <td className="px-4 py-2 font-semibold text-accent sticky left-0 bg-surface-secondary/50">
                               <div>{cat.label}</div>
                               <div className="text-[10px] font-normal text-muted">
                                 {Math.round(cat.weight * 100)}% weight
@@ -564,7 +562,7 @@ export default function DashboardPage() {
                               key={sc.key}
                               className="border-b border-border/50"
                             >
-                              <td className="px-4 py-2 pl-8 text-muted sticky left-0 bg-white">
+                              <td className="px-4 py-2 pl-8 text-muted sticky left-0 bg-surface">
                                 {sc.label}
                               </td>
                               {comparisonCandidates.map((c) => {
@@ -598,9 +596,8 @@ export default function DashboardPage() {
                           ))}
                         </>
                       ))}
-                      {/* Weighted overall row */}
-                      <tr className="bg-blue-50 border-t-2 border-accent">
-                        <td className="px-4 py-3 font-bold sticky left-0 bg-blue-50">
+                      <tr className="bg-accent-light border-t-2 border-accent">
+                        <td className="px-4 py-3 font-bold sticky left-0 bg-accent-light">
                           Weighted Overall
                         </td>
                         {comparisonCandidates.map((c) => {
@@ -636,9 +633,8 @@ export default function DashboardPage() {
               </div>
             )}
 
-            {/* Comparison comments */}
             {comparisonCandidates.length > 0 && (
-              <div className="bg-white border border-border rounded-2xl p-6">
+              <div className="bg-surface border border-border rounded-2xl p-6">
                 <h3 className="font-bold text-lg mb-4">
                   All Interviewer Comments
                 </h3>
@@ -663,7 +659,7 @@ export default function DashboardPage() {
                             {candidateFbs.map((fb) => (
                               <div
                                 key={fb.id}
-                                className="bg-gray-50 rounded-lg p-3"
+                                className="bg-surface-secondary rounded-lg p-3"
                               >
                                 <div className="flex items-center gap-2 mb-2">
                                   <span className="text-sm font-medium">
@@ -684,7 +680,7 @@ export default function DashboardPage() {
                                     ).map((t) => (
                                       <span
                                         key={t}
-                                        className="inline-block px-2 py-0.5 rounded bg-indigo-50 text-indigo-700 text-xs font-medium"
+                                        className="inline-block px-2 py-0.5 rounded bg-accent-light text-accent text-xs font-medium"
                                       >
                                         {t}
                                       </span>
@@ -707,7 +703,7 @@ export default function DashboardPage() {
                                 })}
                                 {fb.overall_comments && (
                                   <div className="mt-2 pt-2 border-t border-border">
-                                    <span className="text-xs font-semibold text-blue-600 uppercase">
+                                    <span className="text-xs font-semibold text-accent uppercase">
                                       Overall:
                                     </span>{" "}
                                     <span className="text-sm">

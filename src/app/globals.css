@@ -1,27 +1,72 @@
 @import "tailwindcss";
 
 :root {
-  --background: #f8fafc;
-  --foreground: #0f172a;
+  --background: #ffffff;
+  --foreground: #18181b;
+  --surface: #ffffff;
+  --surface-secondary: #f4f4f5;
+  --surface-tertiary: #e4e4e7;
   --accent: #2563eb;
   --accent-light: #dbeafe;
-  --border: #e2e8f0;
-  --muted: #64748b;
+  --accent-hover: #1d4ed8;
+  --border: #e4e4e7;
+  --muted: #71717a;
   --success: #16a34a;
   --warning: #eab308;
   --danger: #dc2626;
+  --score-high-bg: #dcfce7;
+  --score-high-text: #166534;
+  --score-mid-bg: #fef3c7;
+  --score-mid-text: #92400e;
+  --score-low-bg: #fee2e2;
+  --score-low-text: #991b1b;
+  --overlay: rgba(0, 0, 0, 0.4);
+}
+
+.dark {
+  --background: #09090b;
+  --foreground: #fafafa;
+  --surface: #18181b;
+  --surface-secondary: #27272a;
+  --surface-tertiary: #3f3f46;
+  --accent: #3b82f6;
+  --accent-light: #1e3a5f;
+  --accent-hover: #60a5fa;
+  --border: #27272a;
+  --muted: #a1a1aa;
+  --success: #22c55e;
+  --warning: #facc15;
+  --danger: #ef4444;
+  --score-high-bg: #052e16;
+  --score-high-text: #86efac;
+  --score-mid-bg: #422006;
+  --score-mid-text: #fde68a;
+  --score-low-bg: #450a0a;
+  --score-low-text: #fca5a5;
+  --overlay: rgba(0, 0, 0, 0.6);
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
+  --color-surface: var(--surface);
+  --color-surface-secondary: var(--surface-secondary);
+  --color-surface-tertiary: var(--surface-tertiary);
   --color-accent: var(--accent);
   --color-accent-light: var(--accent-light);
+  --color-accent-hover: var(--accent-hover);
   --color-border: var(--border);
   --color-muted: var(--muted);
   --color-success: var(--success);
   --color-warning: var(--warning);
   --color-danger: var(--danger);
+  --color-score-high-bg: var(--score-high-bg);
+  --color-score-high-text: var(--score-high-text);
+  --color-score-mid-bg: var(--score-mid-bg);
+  --color-score-mid-text: var(--score-mid-text);
+  --color-score-low-bg: var(--score-low-bg);
+  --color-score-low-text: var(--score-low-text);
+  --color-overlay: var(--overlay);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
 }
@@ -30,8 +75,10 @@ body {
   background: var(--background);
   color: var(--foreground);
   font-family: var(--font-sans), system-ui, sans-serif;
+  transition: background-color 0.2s ease, color 0.2s ease;
 }
 
 input, select, textarea {
   font-family: inherit;
+  color: inherit;
 }

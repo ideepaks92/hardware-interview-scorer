@@ -4,6 +4,7 @@ import { useEffect, useState, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { SCORING_CATEGORIES, NA_SCORE } from "@/lib/scoring";
 import { PROBLEM_STATEMENTS } from "@/lib/problems";
+import ThemeToggle from "@/components/ThemeToggle";
 
 interface Interviewer {
   id: string;
@@ -138,9 +139,9 @@ export default function FeedbackPage() {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">
-          <div className="w-16 h-16 rounded-full bg-emerald-100 flex items-center justify-center mx-auto mb-4">
+          <div className="w-16 h-16 rounded-full bg-score-high-bg flex items-center justify-center mx-auto mb-4">
             <svg
-              className="w-8 h-8 text-emerald-600"
+              className="w-8 h-8 text-success"
               fill="none"
               viewBox="0 0 24 24"
               stroke="currentColor"
@@ -162,7 +163,7 @@ export default function FeedbackPage() {
 
   return (
     <div className="min-h-screen bg-background">
-      <header className="bg-white border-b border-border sticky top-0 z-10">
+      <header className="bg-surface border-b border-border sticky top-0 z-10">
         <div className="max-w-4xl mx-auto px-6 py-4 flex items-center justify-between">
           <div className="flex items-center gap-3">
             <button
@@ -185,9 +186,12 @@ export default function FeedbackPage() {
             </button>
             <h1 className="font-bold text-lg">New Interview Feedback</h1>
           </div>
-          <div className="text-right">
-            <p className="text-sm font-medium">{interviewer.name}</p>
-            <p className="text-xs text-muted">{interviewer.role}</p>
+          <div className="flex items-center gap-4">
+            <ThemeToggle />
+            <div className="text-right">
+              <p className="text-sm font-medium">{interviewer.name}</p>
+              <p className="text-xs text-muted">{interviewer.role}</p>
+            </div>
           </div>
         </div>
       </header>
@@ -197,7 +201,7 @@ export default function FeedbackPage() {
         className="max-w-4xl mx-auto px-6 py-8 space-y-8"
       >
         {/* Interview Details */}
-        <div className="bg-white border border-border rounded-2xl p-6">
+        <div className="bg-surface border border-border rounded-2xl p-6">
           <h2 className="font-bold text-lg mb-4">Interview Details</h2>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
@@ -208,7 +212,7 @@ export default function FeedbackPage() {
                 value={selectedCandidate}
                 onChange={(e) => setSelectedCandidate(e.target.value)}
                 required
-                className="w-full px-4 py-2.5 border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-accent bg-white cursor-pointer"
+                className="w-full px-4 py-2.5 border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-accent bg-background cursor-pointer"
               >
                 <option value="">Select a candidate...</option>
                 {candidates.map((c) => (
@@ -226,14 +230,14 @@ export default function FeedbackPage() {
                 type="date"
                 value={interviewDate}
                 onChange={(e) => setInterviewDate(e.target.value)}
-                className="w-full px-4 py-2.5 border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-accent"
+                className="w-full px-4 py-2.5 border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-accent bg-background"
               />
             </div>
           </div>
         </div>
 
         {/* Problem Statements */}
-        <div className="bg-white border border-border rounded-2xl p-6">
+        <div className="bg-surface border border-border rounded-2xl p-6">
           <h2 className="font-bold text-lg mb-1">
             Problem Statements Discussed
           </h2>
@@ -246,7 +250,7 @@ export default function FeedbackPage() {
             <button
               type="button"
               onClick={() => setProblemDropdownOpen((o) => !o)}
-              className="w-full flex items-center justify-between px-4 py-2.5 border border-border rounded-lg bg-white hover:bg-gray-50 transition-colors cursor-pointer text-left"
+              className="w-full flex items-center justify-between px-4 py-2.5 border border-border rounded-lg bg-background hover:bg-surface-secondary transition-colors cursor-pointer text-left"
             >
               <span
                 className={selectedProblems.length === 0 ? "text-muted" : ""}
@@ -271,19 +275,19 @@ export default function FeedbackPage() {
             </button>
 
             {problemDropdownOpen && (
-              <div className="absolute z-20 mt-1 w-full bg-white border border-border rounded-lg shadow-lg overflow-hidden">
+              <div className="absolute z-20 mt-1 w-full bg-surface border border-border rounded-lg shadow-lg overflow-hidden">
                 {PROBLEM_STATEMENTS.map((ps) => (
                   <button
                     key={ps.id}
                     type="button"
                     onClick={() => toggleProblem(ps.id)}
-                    className="w-full flex items-center gap-3 px-4 py-3 hover:bg-gray-50 transition-colors cursor-pointer text-left border-b border-border last:border-0"
+                    className="w-full flex items-center gap-3 px-4 py-3 hover:bg-surface-secondary transition-colors cursor-pointer text-left border-b border-border last:border-0"
                   >
                     <div
                       className={`w-5 h-5 rounded border-2 flex items-center justify-center flex-shrink-0 transition-colors ${
                         selectedProblems.includes(ps.id)
                           ? "bg-accent border-accent"
-                          : "border-gray-300"
+                          : "border-surface-tertiary"
                       }`}
                     >
                       {selectedProblems.includes(ps.id) && (
@@ -326,7 +330,7 @@ export default function FeedbackPage() {
                     <button
                       type="button"
                       onClick={() => toggleProblem(pid)}
-                      className="hover:text-red-600 transition-colors cursor-pointer"
+                      className="hover:text-danger transition-colors cursor-pointer"
                     >
                       <svg
                         className="w-3.5 h-3.5"
@@ -364,13 +368,13 @@ export default function FeedbackPage() {
                       onClick={() =>
                         setExpandedProblem(isExpanded ? null : pid)
                       }
-                      className="w-full flex items-center justify-between px-5 py-3.5 bg-gray-50 hover:bg-gray-100 transition-colors cursor-pointer text-left"
+                      className="w-full flex items-center justify-between px-5 py-3.5 bg-surface-secondary hover:bg-surface-tertiary transition-colors cursor-pointer text-left"
                     >
                       <div>
                         <span className="font-semibold text-sm">
                           {ps.title}
                         </span>
-                        <span className="ml-2 text-xs text-muted px-2 py-0.5 bg-white rounded-full border border-border">
+                        <span className="ml-2 text-xs text-muted px-2 py-0.5 bg-surface rounded-full border border-border">
                           {ps.tag}
                         </span>
                       </div>
@@ -440,7 +444,7 @@ export default function FeedbackPage() {
                                     key={i}
                                     className="flex gap-2 text-sm text-muted"
                                   >
-                                    <span className="text-amber-500 mt-1 flex-shrink-0">
+                                    <span className="text-warning mt-1 flex-shrink-0">
                                       &#9670;
                                     </span>
                                     <span>{note}</span>
@@ -467,11 +471,11 @@ export default function FeedbackPage() {
         {SCORING_CATEGORIES.map((cat) => (
           <div
             key={cat.key}
-            className="bg-white border border-border rounded-2xl p-6"
+            className="bg-surface border border-border rounded-2xl p-6"
           >
             <div className="flex items-center justify-between mb-1">
               <h2 className="font-bold text-lg">{cat.label}</h2>
-              <span className="text-xs text-muted bg-gray-100 px-2 py-0.5 rounded-full">
+              <span className="text-xs text-muted bg-surface-secondary px-2 py-0.5 rounded-full">
                 Weight: {Math.round(cat.weight * 100)}%
               </span>
             </div>
@@ -490,7 +494,7 @@ export default function FeedbackPage() {
                           {sc.doordashValues.map((v) => (
                             <span
                               key={v}
-                              className="inline-block px-2 py-0.5 rounded bg-blue-50 text-blue-600 text-[11px] font-semibold"
+                              className="inline-block px-2 py-0.5 rounded bg-accent-light text-accent text-[11px] font-semibold"
                             >
                               {v}
                             </span>
@@ -502,8 +506,8 @@ export default function FeedbackPage() {
                         onClick={() => clearScore(sc.key)}
                         className={`text-xs px-2.5 py-1 rounded-md border transition-colors cursor-pointer flex-shrink-0 ml-3 mt-0.5 ${
                           isNA
-                            ? "bg-gray-200 border-gray-300 text-gray-600"
-                            : "bg-white border-border text-muted hover:bg-gray-50"
+                            ? "bg-surface-tertiary border-surface-tertiary text-foreground"
+                            : "bg-surface border-border text-muted hover:bg-surface-secondary"
                         }`}
                       >
                         N/A
@@ -511,7 +515,7 @@ export default function FeedbackPage() {
                     </div>
 
                     {isNA ? (
-                      <div className="py-2.5 px-4 bg-gray-50 rounded-lg text-sm text-muted italic">
+                      <div className="py-2.5 px-4 bg-surface-secondary rounded-lg text-sm text-muted italic">
                         Not assessed in this interview
                       </div>
                     ) : (
@@ -528,7 +532,7 @@ export default function FeedbackPage() {
                                   : val === 3
                                     ? "bg-amber-500 text-white border-amber-500 shadow-sm"
                                     : "bg-red-500 text-white border-red-500 shadow-sm"
-                                : "bg-white border-border hover:bg-gray-50 text-foreground"
+                                : "bg-surface border-border hover:bg-surface-secondary text-foreground"
                             }`}
                           >
                             <div className="text-base">{val}</div>
@@ -552,7 +556,7 @@ export default function FeedbackPage() {
                   onChange={(e) => setComment(cat.commentKey, e.target.value)}
                   rows={3}
                   placeholder={`Notes on ${cat.label.toLowerCase()}...`}
-                  className="w-full px-4 py-2.5 border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-accent resize-y"
+                  className="w-full px-4 py-2.5 border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-accent resize-y bg-background"
                 />
               </div>
             </div>
@@ -560,7 +564,7 @@ export default function FeedbackPage() {
         ))}
 
         {/* Overall recommendation */}
-        <div className="bg-white border border-border rounded-2xl p-6">
+        <div className="bg-surface border border-border rounded-2xl p-6">
           <h2 className="font-bold text-lg mb-4">Overall Recommendation</h2>
 
           <div className="flex flex-wrap gap-2 mb-4">
@@ -572,7 +576,7 @@ export default function FeedbackPage() {
                 className={`px-5 py-2.5 rounded-lg text-sm font-semibold border transition-all cursor-pointer ${
                   recommendation === opt.value
                     ? `${opt.color} text-white border-transparent shadow-sm`
-                    : "bg-white border-border hover:bg-gray-50"
+                    : "bg-surface border-border hover:bg-surface-secondary"
                 }`}
               >
                 {opt.label}
@@ -589,7 +593,7 @@ export default function FeedbackPage() {
               onChange={(e) => setOverallComments(e.target.value)}
               rows={4}
               placeholder="Summary thoughts, strengths, concerns, hiring recommendation rationale..."
-              className="w-full px-4 py-2.5 border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-accent resize-y"
+              className="w-full px-4 py-2.5 border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-accent resize-y bg-background"
             />
           </div>
         </div>
@@ -599,14 +603,14 @@ export default function FeedbackPage() {
           <button
             type="submit"
             disabled={submitting || !selectedCandidate}
-            className="flex-1 py-3.5 bg-accent text-white font-semibold rounded-xl hover:bg-blue-700 transition-colors disabled:opacity-50 cursor-pointer"
+            className="flex-1 py-3.5 bg-accent text-white font-semibold rounded-xl hover:bg-accent-hover transition-colors disabled:opacity-50 cursor-pointer"
           >
             {submitting ? "Submitting..." : "Submit Feedback"}
           </button>
           <button
             type="button"
             onClick={() => router.push("/dashboard")}
-            className="px-8 py-3.5 bg-gray-100 font-semibold rounded-xl hover:bg-gray-200 transition-colors cursor-pointer"
+            className="px-8 py-3.5 bg-surface-secondary font-semibold rounded-xl hover:bg-surface-tertiary transition-colors cursor-pointer"
           >
             Cancel
           </button>

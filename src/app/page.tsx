@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import ThemeToggle from "@/components/ThemeToggle";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -39,7 +40,11 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center p-4">
+    <div className="min-h-screen flex items-center justify-center p-4 relative">
+      <div className="absolute top-4 right-4">
+        <ThemeToggle />
+      </div>
+
       <div className="w-full max-w-md">
         <div className="text-center mb-8">
           <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-accent text-white text-2xl font-bold mb-4">
@@ -55,7 +60,7 @@ export default function LoginPage() {
 
         <form
           onSubmit={handleLogin}
-          className="bg-white rounded-2xl shadow-sm border border-border p-8 space-y-5"
+          className="bg-surface rounded-2xl shadow-sm border border-border p-8 space-y-5"
         >
           <div>
             <label className="block text-sm font-medium mb-1.5">
@@ -67,7 +72,7 @@ export default function LoginPage() {
               onChange={(e) => setName(e.target.value)}
               required
               placeholder="Jane Smith"
-              className="w-full px-4 py-2.5 border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-accent focus:border-transparent"
+              className="w-full px-4 py-2.5 border border-border rounded-lg bg-background focus:outline-none focus:ring-2 focus:ring-accent focus:border-transparent"
             />
           </div>
 
@@ -79,7 +84,7 @@ export default function LoginPage() {
               onChange={(e) => setEmail(e.target.value)}
               required
               placeholder="jane@company.com"
-              className="w-full px-4 py-2.5 border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-accent focus:border-transparent"
+              className="w-full px-4 py-2.5 border border-border rounded-lg bg-background focus:outline-none focus:ring-2 focus:ring-accent focus:border-transparent"
             />
           </div>
 
@@ -92,12 +97,12 @@ export default function LoginPage() {
               value={role}
               onChange={(e) => setRole(e.target.value)}
               placeholder="Sr. Mechanical Engineer"
-              className="w-full px-4 py-2.5 border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-accent focus:border-transparent"
+              className="w-full px-4 py-2.5 border border-border rounded-lg bg-background focus:outline-none focus:ring-2 focus:ring-accent focus:border-transparent"
             />
           </div>
 
           {error && (
-            <p className="text-danger text-sm bg-red-50 p-3 rounded-lg">
+            <p className="text-danger text-sm bg-score-low-bg p-3 rounded-lg">
               {error}
             </p>
           )}
@@ -105,7 +110,7 @@ export default function LoginPage() {
           <button
             type="submit"
             disabled={loading}
-            className="w-full py-3 bg-accent text-white font-semibold rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 cursor-pointer"
+            className="w-full py-3 bg-accent text-white font-semibold rounded-lg hover:bg-accent-hover transition-colors disabled:opacity-50 cursor-pointer"
           >
             {loading ? "Signing in..." : "Sign In"}
           </button>
