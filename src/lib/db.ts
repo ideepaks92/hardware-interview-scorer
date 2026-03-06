@@ -161,7 +161,7 @@ async function migrate(db: Client) {
 
   if (!existing.has("updated_at")) {
     await db.execute(
-      "ALTER TABLE feedback ADD COLUMN updated_at TEXT DEFAULT (datetime('now'))"
+      "ALTER TABLE feedback ADD COLUMN updated_at TEXT"
     );
   }
 
