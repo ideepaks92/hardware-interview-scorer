@@ -215,6 +215,7 @@ export default function DashboardPage() {
   const [feedbackImages, setFeedbackImages] = useState<Record<string, FeedbackImage[]>>({});
   const [lightboxImage, setLightboxImage] = useState<string | null>(null);
   const [downloading, setDownloading] = useState<string | null>(null);
+  const [expandedComments, setExpandedComments] = useState<Set<string>>(new Set());
   const reportRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -599,7 +600,7 @@ export default function DashboardPage() {
                   : "text-muted hover:text-foreground"
               }`}
             >
-              My Feedback
+              Dashboard
             </button>
             <button
               onClick={() => setActiveTab("compare")}
@@ -735,47 +736,65 @@ export default function DashboardPage() {
             {feedbacks.length > 0 && (
               <div className="bg-surface border border-border rounded-2xl p-6">
                 <h3 className="font-bold text-lg mb-4">Detailed Comments</h3>
-                <div className="space-y-6">
-                  {feedbacks.map((fb) => (
-                    <div key={fb.id} className="border-b border-border pb-6 last:border-0 last:pb-0">
-                      <div className="flex items-center gap-2 mb-3">
-                        <span className="font-semibold">{fb.candidate_name}</span>
-                        <span className="text-muted">—</span>
-                        <span className="text-sm text-muted">{fb.interview_date}</span>
-                      </div>
-                      {fb.overall_comments && (
-                        <div className="bg-accent-light rounded-lg p-3 mb-3">
-                          <p className="text-xs font-semibold text-accent uppercase mb-1">Overall Notes</p>
-                          <p className="text-sm">{fb.overall_comments as string}</p>
+                <div className="space-y-2">
+                  {feedbacks.map((fb) => {
+                    const isOpen = expandedComments.has(fb.id);
+                    return (
+                    <div key={fb.id} className="border border-border rounded-lg overflow-hidden">
+                      <button
+                        onClick={() => setExpandedComments((prev) => {
+                          const next = new Set(prev);
+                          if (next.has(fb.id)) next.delete(fb.id);
+                          else next.add(fb.id);
+                          return next;
+                        })}
+                        className="w-full flex items-center justify-between px-4 py-3 hover:bg-surface-secondary transition-colors cursor-pointer"
+                      >
+                        <div className="flex items-center gap-2">
+                          <span className="font-semibold">{fb.candidate_name}</span>
+                          <span className="text-muted">—</span>
+                          <span className="text-sm text-muted">{fb.interview_date}</span>
+                        </div>
+                        <svg className={`w-5 h-5 text-muted transition-transform ${isOpen ? "rotate-180" : ""}`} fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
+                      </button>
+                      {isOpen && (
+                        <div className="px-4 pb-4 pt-1">
+                          {fb.overall_comments && (
+                            <div className="bg-accent-light rounded-lg p-3 mb-3">
+                              <p className="text-xs font-semibold text-accent uppercase mb-1">Overall Notes</p>
+                              <p className="text-sm">{fb.overall_comments as string}</p>
+                            </div>
+                          )}
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                            {SCORING_CATEGORIES.map((cat) => {
+                              const comment = fb[cat.commentKey] as string | null;
+                              if (!comment) return null;
+                              return (
+                                <div key={cat.key} className="bg-surface-secondary rounded-lg p-3">
+                                  <p className="text-xs font-semibold text-muted uppercase mb-1">{cat.label}</p>
+                                  <p className="text-sm">{comment}</p>
+                                </div>
+                              );
+                            })}
+                            {feedbackImages[fb.id] && feedbackImages[fb.id].length > 0 && (
+                              <div className="md:col-span-2">
+                                <p className="text-xs font-semibold text-muted uppercase mb-2">Screenshots & Whiteboard Photos</p>
+                                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2">
+                                  {feedbackImages[fb.id].map((img) => (
+                                    <button key={img.id} type="button" onClick={() => setLightboxImage(`data:${img.mime_type};base64,${img.image_data}`)} className="rounded-lg overflow-hidden border border-border hover:border-accent transition-colors cursor-pointer">
+                                      <img src={`data:${img.mime_type};base64,${img.image_data}`} alt={img.filename} className="w-full h-24 object-cover" />
+                                      <p className="text-[10px] text-muted truncate px-1.5 py-1 bg-surface-secondary">{img.filename}</p>
+                                    </button>
+                                  ))}
+                                </div>
+                              </div>
+                            )}
+                          </div>
                         </div>
                       )}
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                        {SCORING_CATEGORIES.map((cat) => {
-                          const comment = fb[cat.commentKey] as string | null;
-                          if (!comment) return null;
-                          return (
-                            <div key={cat.key} className="bg-surface-secondary rounded-lg p-3">
-                              <p className="text-xs font-semibold text-muted uppercase mb-1">{cat.label}</p>
-                              <p className="text-sm">{comment}</p>
-                            </div>
-                          );
-                        })}
-                        {feedbackImages[fb.id] && feedbackImages[fb.id].length > 0 && (
-                          <div className="md:col-span-2">
-                            <p className="text-xs font-semibold text-muted uppercase mb-2">Screenshots & Whiteboard Photos</p>
-                            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2">
-                              {feedbackImages[fb.id].map((img) => (
-                                <button key={img.id} type="button" onClick={() => setLightboxImage(`data:${img.mime_type};base64,${img.image_data}`)} className="rounded-lg overflow-hidden border border-border hover:border-accent transition-colors cursor-pointer">
-                                  <img src={`data:${img.mime_type};base64,${img.image_data}`} alt={img.filename} className="w-full h-24 object-cover" />
-                                  <p className="text-[10px] text-muted truncate px-1.5 py-1 bg-surface-secondary">{img.filename}</p>
-                                </button>
-                              ))}
-                            </div>
-                          </div>
-                        )}
-                      </div>
                     </div>
-                  ))}
+                    );
+                  })}
                 </div>
               </div>
             )}
