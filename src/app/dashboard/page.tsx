@@ -62,6 +62,13 @@ interface FeedbackImage {
   caption: string | null;
 }
 
+function hexToRgba(hex: string, alpha: number): string {
+  const r = parseInt(hex.slice(1, 3), 16);
+  const g = parseInt(hex.slice(3, 5), 16);
+  const b = parseInt(hex.slice(5, 7), 16);
+  return `rgba(${r},${g},${b},${alpha})`;
+}
+
 function recLabel(rec: string | number | null | undefined): string {
   if (!rec || typeof rec !== "string") return "--";
   return rec.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
@@ -472,7 +479,7 @@ export default function DashboardPage() {
       html += `<div style="display: flex; padding: 8px 10px; font-size: 12px; border-bottom: 1px solid #e2e8f0; align-items: center;">
         <div style="width: 180px;"><div style="font-weight: 600;">${fb.candidate_name}</div><div style="font-size: 10px; color: #999;">${fb.candidate_position || ""}</div></div>
         <div style="width: 70px; text-align: center; color: #666;">${formatShortDate(fb.interview_date)}</div>
-        <div style="width: 80px; text-align: center;"><span style="background: ${recHex}22; color: ${recHex}; padding: 2px 8px; border-radius: 10px; font-size: 10px; font-weight: 600;">${recLabel(fb.overall_recommendation)}</span></div>
+        <div style="width: 80px; text-align: center;"><span style="background: ${hexToRgba(recHex, 0.13)}; color: ${recHex}; padding: 2px 8px; border-radius: 10px; font-size: 10px; font-weight: 600;">${recLabel(fb.overall_recommendation)}</span></div>
         <div style="width: 70px; text-align: center;"><span style="background: #dbeafe; color: #2563eb; padding: 2px 8px; border-radius: 4px; font-weight: 700; font-size: 12px;">${overallPct}</span></div>`;
       for (const score of catScores) {
         const pct = scoreToPercent(score);
