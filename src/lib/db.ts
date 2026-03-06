@@ -53,10 +53,11 @@ async function initializeDb(db: Client) {
       candidate_id TEXT NOT NULL,
       interview_date TEXT NOT NULL,
 
-      dfm_process_selection INTEGER,
-      ta_gdt INTEGER,
-      materials_selection INTEGER,
+      system_level_thinking INTEGER,
       mechanism_machine_design INTEGER,
+      dfm_process_selection INTEGER,
+      materials_selection INTEGER,
+      ta_gdt INTEGER,
       technical_comments TEXT,
 
       analytical_judgment INTEGER,
@@ -115,6 +116,7 @@ async function initializeDb(db: Client) {
 }
 
 const NEW_COLUMNS = [
+  "system_level_thinking",
   "dfm_process_selection",
   "analytical_judgment",
   "test_strategy",
