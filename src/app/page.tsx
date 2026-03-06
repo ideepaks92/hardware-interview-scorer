@@ -183,6 +183,14 @@ export default function LoginPage() {
             : "Already have an account? Switch to Sign In above."}
         </p>
       </div>
+      <footer className="mt-12 pb-8 text-center text-xs text-muted italic">
+        <p>Made with &lt;3 in California</p>
+        <p className="mt-1">
+          Vibe Coded by Deepak (
+          <a href="https://heydeepak.com" target="_blank" rel="noopener noreferrer" className="underline hover:text-accent">heydeepak.com</a>
+          ). 6 hours. Last updated 030626
+        </p>
+      </footer>
     </div>
   );
 }

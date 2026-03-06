@@ -591,40 +591,75 @@ export default function DashboardPage() {
   }
 
   async function downloadComparisonPng() {
-    if (!comparisonRef.current) return;
     setDownloadingComparison(true);
     try {
-      const html2canvas = (await import("html2canvas")).default;
-      const canvas = await html2canvas(comparisonRef.current, {
-        scale: 2,
-        backgroundColor: "#ffffff",
-        useCORS: true,
-        onclone: (clonedDoc) => {
-          const clonedEl = clonedDoc.querySelector("[data-comparison-ref]");
-          if (!clonedEl) return;
-          clonedEl.querySelectorAll("canvas").forEach((origCanvas) => {
-            const srcCanvas = comparisonRef.current?.querySelector("canvas");
-            if (!srcCanvas) return;
-            const img = clonedDoc.createElement("img");
-            img.src = srcCanvas.toDataURL("image/png");
-            img.style.width = origCanvas.style.width || `${origCanvas.width}px`;
-            img.style.height = origCanvas.style.height || `${origCanvas.height}px`;
-            origCanvas.parentNode?.replaceChild(img, origCanvas);
-          });
-          clonedEl.querySelectorAll("*").forEach((el) => {
-            const htmlEl = el as HTMLElement;
-            const computed = window.getComputedStyle(htmlEl);
-            htmlEl.style.color = computed.color;
-            htmlEl.style.backgroundColor = computed.backgroundColor;
-            htmlEl.style.borderColor = computed.borderColor;
-          });
-        },
-      });
-      const link = document.createElement("a");
+      const chartCanvas = comparisonRef.current?.querySelector("canvas");
+      const chartImgSrc = chartCanvas ? chartCanvas.toDataURL("image/png") : "";
+
+      const summary = generateComparisonSummary(comparisonCandidates, allFeedbacks);
+
+      let html = `<div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; color: #1a1a1a; padding: 32px; width: 1100px; background: #fff;">`;
+      html += `<h1 style="font-size: 20px; font-weight: 700; margin: 0 0 20px 0; border-bottom: 2px solid #2563eb; padding-bottom: 12px;">Candidate Comparison</h1>`;
+
+      html += `<div style="display: flex; gap: 24px; margin-bottom: 24px;">`;
+      if (chartImgSrc) {
+        html += `<div style="flex: 1; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; padding: 20px; text-align: center;">
+          <h3 style="font-size: 14px; font-weight: 700; margin: 0 0 12px 0;">Comparison Chart</h3>
+          <img src="${chartImgSrc}" style="max-width: 100%; height: auto;" /></div>`;
+      }
+      html += `<div style="flex: 1; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; padding: 20px;">
+        <h3 style="font-size: 14px; font-weight: 700; margin: 0 0 12px 0;">Summary</h3>
+        <p style="font-size: 13px; line-height: 1.6; margin: 0 0 20px 0;">${summary}</p>`;
+
+      for (const c of comparisonCandidates) {
+        const fbs = allFeedbacks.filter((f) => f.candidate_id === c.id);
+        const ov = fbs.map((fb) => weightedOverallFromFeedback(fb)).filter((s): s is number => s !== null);
+        const avg = ov.length > 0 ? ov.reduce((a, b) => a + b, 0) / ov.length : null;
+        const pct = avg ? Math.round((avg / 5) * 100) : 0;
+        html += `<div style="display: flex; align-items: center; gap: 10px; margin-bottom: 8px;">
+          <span style="font-size: 12px; font-weight: 600; width: 120px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${c.name}</span>
+          <div style="flex: 1; background: #e2e8f0; border-radius: 10px; height: 16px; overflow: hidden;">
+            <div style="height: 100%; border-radius: 10px; background: #2563eb; width: ${pct}%;"></div>
+          </div>
+          <span style="font-size: 12px; font-weight: 700; width: 40px; text-align: right;">${avg ? scoreToPercent(avg) : "--"}</span>
+        </div>`;
+      }
+      html += `</div></div>`;
+
+      html += `<table style="width: 100%; border-collapse: collapse; font-size: 13px;">
+        <thead><tr style="background: #f1f5f9;">
+          <th style="text-align: left; padding: 10px 14px; font-weight: 600; border-bottom: 2px solid #e2e8f0;">Category</th>`;
+      for (const c of comparisonCandidates) {
+        html += `<th style="text-align: center; padding: 10px 14px; font-weight: 600; border-bottom: 2px solid #e2e8f0;">${c.name}<br/><span style="font-size: 10px; color: #999; font-weight: 400;">${c.position || ""}</span></th>`;
+      }
+      html += `</tr></thead><tbody>`;
+
+      for (const cat of SCORING_CATEGORIES) {
+        html += `<tr style="background: #f8fafc;"><td style="padding: 8px 14px; font-weight: 600; color: #2563eb; border-bottom: 1px solid #e2e8f0;">${cat.label} <span style="font-size: 10px; color: #999; font-weight: 400;">(${Math.round(cat.weight * 100)}%)</span></td>`;
+        for (const c of comparisonCandidates) {
+          const fbs = allFeedbacks.filter((f) => f.candidate_id === c.id);
+          const scores = fbs.map((fb) => avgScore(fb, cat.subcriteria.map((s) => s.key))).filter((s): s is number => s !== null);
+          const avg = scores.length > 0 ? scores.reduce((a, b) => a + b, 0) / scores.length : null;
+          const color = avg && avg >= 4 ? "#16a34a" : avg && avg >= 3 ? "#d97706" : avg ? "#dc2626" : "#999";
+          html += `<td style="text-align: center; padding: 8px 14px; font-weight: 700; font-size: 15px; color: ${color}; border-bottom: 1px solid #e2e8f0;">${scoreToPercent(avg)} <span style="font-size: 10px; color: #999; font-weight: 400;">(${scores.length})</span></td>`;
+        }
+        html += `</tr>`;
+
+        for (const sc of cat.subcriteria) {
+          html += `<tr><td style="padding: 5px 14px 5px 28px; font-size: 11px; color: #666; border-bottom: 1px solid #f1f5f9;">${sc.label}</td>`;
+          for (const c of comparisonCandidates) {
+            const fbs = allFeedbacks.filter((f) => f.candidate_id === c.id);
+            const vals = fbs.map((fb) => { const v = fb[sc.key]; return typeof v === "number" && v > 0 ? v : null; }).filter((s): s is number => s !== null);
+            const avg = vals.length > 0 ? vals.reduce((a, b) => a + b, 0) / vals.length : null;
+            html += `<td style="text-align: center; padding: 5px 14px; font-size: 12px; color: ${avg ? "#333" : "#ccc"}; border-bottom: 1px solid #f1f5f9;">${avg ? scoreToPercent(avg) : "--"}</td>`;
+          }
+          html += `</tr>`;
+        }
+      }
+      html += `</tbody></table></div>`;
+
       const names = comparisonCandidates.map((c) => c.name.split(" ")[0]).join("-vs-");
-      link.download = `Comparison-${names}.png`;
-      link.href = canvas.toDataURL("image/png");
-      link.click();
+      await renderHtmlToPng(html, `Comparison-${names}.png`, 1100);
     } catch (err) { console.error("Comparison PNG error:", err); }
     setDownloadingComparison(false);
   }
@@ -1415,6 +1450,14 @@ export default function DashboardPage() {
             </div>
           </div>
         )}
+        <footer className="mt-16 pb-8 text-center text-xs text-muted italic">
+          <p>Made with &lt;3 in California</p>
+          <p className="mt-1">
+            Vibe Coded by Deepak (
+            <a href="https://heydeepak.com" target="_blank" rel="noopener noreferrer" className="underline hover:text-accent">heydeepak.com</a>
+            ). 6 hours. Last updated 030626
+          </p>
+        </footer>
       </main>
     </div>
   );
