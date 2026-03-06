@@ -320,6 +320,11 @@ export default function DashboardPage() {
       el.style.display = "block";
 
       await new Promise((r) => setTimeout(r, 100));
+
+      const containerHeight = el.scrollHeight;
+      const sections = Array.from(el.querySelectorAll("[data-section]"));
+      const sectionTops = sections.map((s) => (s as HTMLElement).offsetTop);
+
       const canvas = await html2canvas(el, {
         scale: 2,
         backgroundColor: "#ffffff",
@@ -329,15 +334,42 @@ export default function DashboardPage() {
       el.style.display = "none";
 
       const imgWidth = 210;
-      const imgHeight = (canvas.height * imgWidth) / canvas.width;
-      const pdf = new jsPDF({ orientation: imgHeight > 297 ? "p" : "p", unit: "mm", format: "a4" });
-      const pageHeight = pdf.internal.pageSize.getHeight();
-      let position = 0;
+      const pxPerMm = canvas.width / imgWidth;
+      const pageHeightPx = 297 * pxPerMm;
+      const domToCanvas = canvas.height / containerHeight;
+      const sectionTopsPx = sectionTops.map((t) => Math.round(t * domToCanvas));
 
-      while (position < imgHeight) {
-        if (position > 0) pdf.addPage();
-        pdf.addImage(canvas.toDataURL("image/png"), "PNG", 0, -position, imgWidth, imgHeight);
-        position += pageHeight;
+      const pageBreaks: number[] = [0];
+      let cursor = 0;
+      while (cursor + pageHeightPx < canvas.height) {
+        let cut = cursor + pageHeightPx;
+        for (let i = sectionTopsPx.length - 1; i >= 0; i--) {
+          const st = sectionTopsPx[i];
+          if (st > cursor + pageHeightPx * 0.25 && st <= cut) {
+            const sEnd = i + 1 < sectionTopsPx.length ? sectionTopsPx[i + 1] : canvas.height;
+            if (sEnd > cut) {
+              cut = st - 2;
+              break;
+            }
+          }
+        }
+        pageBreaks.push(cut);
+        cursor = cut;
+      }
+
+      const pdf = new jsPDF("p", "mm", "a4");
+      for (let i = 0; i < pageBreaks.length; i++) {
+        if (i > 0) pdf.addPage();
+        const srcY = pageBreaks[i];
+        const srcH = (i + 1 < pageBreaks.length ? pageBreaks[i + 1] : canvas.height) - srcY;
+        const slice = document.createElement("canvas");
+        slice.width = canvas.width;
+        slice.height = Math.round(srcH);
+        const ctx = slice.getContext("2d")!;
+        ctx.fillStyle = "#ffffff";
+        ctx.fillRect(0, 0, slice.width, slice.height);
+        ctx.drawImage(canvas, 0, srcY, canvas.width, srcH, 0, 0, canvas.width, srcH);
+        pdf.addImage(slice.toDataURL("image/png"), "PNG", 0, 0, imgWidth, srcH / pxPerMm);
       }
 
       const candidateFirst = fb.candidate_name.split(" ")[0];
@@ -388,45 +420,41 @@ export default function DashboardPage() {
     }
 
     html += `
-        <table style="width: 100%; border-collapse: collapse; font-size: 13px; margin-bottom: 20px;">
-          <thead>
-            <tr style="background: #f1f5f9;">
-              <th style="text-align: left; padding: 8px 12px; border-bottom: 1px solid #e2e8f0; font-weight: 600;">Category</th>
-              <th style="text-align: center; padding: 8px 12px; border-bottom: 1px solid #e2e8f0; font-weight: 600;">Weight</th>
-              <th style="text-align: center; padding: 8px 12px; border-bottom: 1px solid #e2e8f0; font-weight: 600;">Score</th>
-            </tr>
-          </thead>
-          <tbody>`;
+        <div style="display: flex; background: #f1f5f9; padding: 8px 12px; font-size: 13px; font-weight: 600; border-bottom: 1px solid #e2e8f0;">
+          <div style="flex: 1;">Category</div>
+          <div style="width: 80px; text-align: center;">Weight</div>
+          <div style="width: 80px; text-align: center;">Score</div>
+        </div>`;
 
     for (const cat of SCORING_CATEGORIES) {
       const catAvg = avgScore(fb, cat.subcriteria.map((s) => s.key));
+      html += `<div data-section>`;
       html += `
-            <tr style="background: #f8fafc;">
-              <td style="padding: 6px 12px; border-bottom: 1px solid #e2e8f0; font-weight: 600;">${cat.label}</td>
-              <td style="text-align: center; padding: 6px 12px; border-bottom: 1px solid #e2e8f0;">${Math.round(cat.weight * 100)}%</td>
-              <td style="text-align: center; padding: 6px 12px; border-bottom: 1px solid #e2e8f0; font-weight: 600; color: ${catAvg && catAvg >= 4 ? "#16a34a" : catAvg && catAvg >= 3 ? "#d97706" : catAvg ? "#dc2626" : "#999"};">${scoreToPercent(catAvg)}</td>
-            </tr>`;
+        <div style="display: flex; background: #f8fafc; padding: 6px 12px; font-size: 13px; font-weight: 600; border-bottom: 1px solid #e2e8f0;">
+          <div style="flex: 1;">${cat.label}</div>
+          <div style="width: 80px; text-align: center; font-weight: 400;">${Math.round(cat.weight * 100)}%</div>
+          <div style="width: 80px; text-align: center; color: ${catAvg && catAvg >= 4 ? "#16a34a" : catAvg && catAvg >= 3 ? "#d97706" : catAvg ? "#dc2626" : "#999"};">${scoreToPercent(catAvg)}</div>
+        </div>`;
       for (const sc of cat.subcriteria) {
         const val = fb[sc.key] as number | null;
         const display = val === -1 ? "N/A" : val ? `${val}/5` : "--";
         html += `
-            <tr>
-              <td style="padding: 4px 12px 4px 28px; border-bottom: 1px solid #f1f5f9; color: #666; font-size: 12px;">${sc.label}</td>
-              <td style="text-align: center; padding: 4px 12px; border-bottom: 1px solid #f1f5f9;"></td>
-              <td style="text-align: center; padding: 4px 12px; border-bottom: 1px solid #f1f5f9; font-size: 12px;">${display}</td>
-            </tr>`;
+        <div style="display: flex; padding: 4px 12px 4px 28px; font-size: 12px; border-bottom: 1px solid #f1f5f9;">
+          <div style="flex: 1; color: #666;">${sc.label}</div>
+          <div style="width: 80px; text-align: center;"></div>
+          <div style="width: 80px; text-align: center;">${display}</div>
+        </div>`;
       }
+      html += `</div>`;
     }
-
-    html += `</tbody></table>`;
 
     const hasComments = SCORING_CATEGORIES.some((cat) => fb[cat.commentKey]);
     if (hasComments) {
-      html += `<div style="margin-top: 16px;"><h3 style="font-size: 14px; font-weight: 700; margin: 0 0 12px 0;">Comments</h3>`;
+      html += `<div data-section style="margin-top: 16px;"><h3 style="font-size: 14px; font-weight: 700; margin: 0 0 12px 0;">Comments</h3>`;
       for (const cat of SCORING_CATEGORIES) {
         const comment = fb[cat.commentKey] as string | null;
         if (comment) {
-          html += `<div style="margin-bottom: 10px; padding: 8px 12px; background: #f8fafc; border-radius: 6px; border-left: 3px solid #2563eb;">
+          html += `<div data-section style="margin-bottom: 10px; padding: 8px 12px; background: #f8fafc; border-radius: 6px; border-left: 3px solid #2563eb;">
             <div style="font-size: 11px; font-weight: 600; text-transform: uppercase; color: #666; margin-bottom: 2px;">${cat.label}</div>
             <div style="font-size: 13px;">${comment}</div>
           </div>`;

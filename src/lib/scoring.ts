@@ -273,38 +273,6 @@ export const SCORING_CATEGORIES: CategoryConfig[] = [
     commentKey: "working_mindset_comments",
   },
   {
-    key: "intuition",
-    label: "Intuition",
-    weight: 0.1,
-    subcriteria: [
-      {
-        key: "failure_mode_awareness",
-        label: "Failure Mode Awareness",
-        scale: [
-          "No awareness of potential failures",
-          "Reactive; sees failures only after they happen",
-          "Identifies obvious risks during design",
-          "Anticipates subtle failure modes proactively",
-          "Predicts field failures from design; DFMEA-level thinking",
-        ],
-        doordashValues: ["Operate at the Lowest Level of Detail"],
-      },
-      {
-        key: "order_of_magnitude",
-        label: "Order-of-Magnitude Estimation",
-        scale: [
-          "Cannot estimate; no reference frame",
-          "Estimates often off by 10x or more",
-          "Within 3x on common engineering quantities",
-          "Within 50%; catches unreasonable numbers quickly",
-          "Nails estimates; rapid sanity-check reflex",
-        ],
-        doordashValues: [],
-      },
-    ],
-    commentKey: "intuition_comments",
-  },
-  {
     key: "cross_functional",
     label: "Cross-Functional Focus",
     weight: 0.15,
@@ -336,6 +304,38 @@ export const SCORING_CATEGORIES: CategoryConfig[] = [
     ],
     commentKey: "cross_functional_comments",
   },
+  {
+    key: "intuition",
+    label: "Intuition",
+    weight: 0.1,
+    subcriteria: [
+      {
+        key: "failure_mode_awareness",
+        label: "Failure Mode Awareness",
+        scale: [
+          "No awareness of potential failures",
+          "Reactive; sees failures only after they happen",
+          "Identifies obvious risks during design",
+          "Anticipates subtle failure modes proactively",
+          "Predicts field failures from design; DFMEA-level thinking",
+        ],
+        doordashValues: ["Operate at the Lowest Level of Detail"],
+      },
+      {
+        key: "order_of_magnitude",
+        label: "Order-of-Magnitude Estimation",
+        scale: [
+          "Cannot estimate; no reference frame",
+          "Estimates often off by 10x or more",
+          "Within 3x on common engineering quantities",
+          "Within 50%; catches unreasonable numbers quickly",
+          "Nails estimates; rapid sanity-check reflex",
+        ],
+        doordashValues: [],
+      },
+    ],
+    commentKey: "intuition_comments",
+  },
 ];
 
 export const NA_SCORE = -1;
@@ -346,8 +346,8 @@ export const CATEGORY_SHORT_LABELS: Record<string, string> = {
   cultural_fit: "Cultural",
   communication: "Comm",
   working_mindset: "Startup",
-  intuition: "Intuition",
   cross_functional: "X-func",
+  intuition: "Intuition",
 };
 
 export function scoreToPercent(score: number | null): string {

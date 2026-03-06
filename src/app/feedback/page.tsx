@@ -130,9 +130,9 @@ function FeedbackForm() {
         setRecommendation((fb.overall_recommendation as string) || "");
         setOverallComments((fb.overall_comments as string) || "");
 
-        if (typeof fb.time_spent_seconds === "number" && fb.time_spent_seconds > 0) {
-          accumulatedSecondsRef.current = fb.time_spent_seconds;
-        }
+        accumulatedSecondsRef.current = typeof fb.time_spent_seconds === "number" && fb.time_spent_seconds > 0
+          ? fb.time_spent_seconds : 0;
+        sessionStartRef.current = Date.now();
       } catch { /* skip */ }
     },
     []
