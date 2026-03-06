@@ -217,7 +217,9 @@ export default function DashboardPage() {
   const [downloading, setDownloading] = useState<string | null>(null);
   const [downloadMenu, setDownloadMenu] = useState<string | null>(null);
   const [expandedComments, setExpandedComments] = useState<Set<string>>(new Set());
+  const [downloadingComparison, setDownloadingComparison] = useState(false);
   const reportRef = useRef<HTMLDivElement>(null);
+  const comparisonRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const stored = localStorage.getItem("interviewer");
@@ -553,6 +555,25 @@ export default function DashboardPage() {
       await renderHtmlToPng(html, `Breakdown-${filePrefix(fb)}.png`);
     } catch (err) { console.error("Breakdown PNG error:", err); }
     setDownloading(null);
+  }
+
+  async function downloadComparisonPng() {
+    if (!comparisonRef.current) return;
+    setDownloadingComparison(true);
+    try {
+      const html2canvas = (await import("html2canvas")).default;
+      const canvas = await html2canvas(comparisonRef.current, {
+        scale: 2,
+        backgroundColor: "#ffffff",
+        useCORS: true,
+      });
+      const link = document.createElement("a");
+      const names = comparisonCandidates.map((c) => c.name.split(" ")[0]).join("-vs-");
+      link.download = `Comparison-${names}.png`;
+      link.href = canvas.toDataURL("image/png");
+      link.click();
+    } catch (err) { console.error("Comparison PNG error:", err); }
+    setDownloadingComparison(false);
   }
 
   function buildReportHTML(fb: Feedback, images?: FeedbackImage[]): string {
@@ -1022,6 +1043,21 @@ export default function DashboardPage() {
             </div>
 
             {comparisonCandidates.length > 0 && radarData && (
+              <div className="flex justify-end mb-2">
+                <button
+                  onClick={downloadComparisonPng}
+                  disabled={downloadingComparison}
+                  className="flex items-center gap-2 px-4 py-2 bg-surface border border-border rounded-lg text-sm font-medium hover:bg-surface-secondary transition-colors cursor-pointer disabled:opacity-50"
+                >
+                  {downloadingComparison
+                    ? <span className="inline-block w-4 h-4 border-2 border-accent border-t-transparent rounded-full animate-spin" />
+                    : <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg>}
+                  Download Comparison PNG
+                </button>
+              </div>
+            )}
+            {comparisonCandidates.length > 0 && radarData && (
+              <div ref={comparisonRef} className="space-y-6">
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                 <div className="bg-surface border border-border rounded-2xl p-6">
                   <h3 className="font-bold text-lg mb-4">Comparison Chart</h3>
@@ -1081,9 +1117,7 @@ export default function DashboardPage() {
                   </div>
                 </div>
               </div>
-            )}
 
-            {comparisonCandidates.length > 0 && (
               <div className="bg-surface border border-border rounded-2xl overflow-hidden">
                 <div className="overflow-x-auto">
                   <table className="w-full text-sm">
@@ -1155,6 +1189,7 @@ export default function DashboardPage() {
                     </tbody>
                   </table>
                 </div>
+              </div>
               </div>
             )}
 
