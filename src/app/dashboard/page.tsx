@@ -528,41 +528,48 @@ export default function DashboardPage() {
         </div></div>`;
 
       const cats = [...SCORING_CATEGORIES];
-      const mid = Math.ceil(cats.length / 2);
-      const col1 = cats.slice(0, mid);
-      const col2 = cats.slice(mid);
+      const totalSubs = cats.map((c) => c.subcriteria.length + 2);
+      let bestSplit = Math.floor(cats.length / 2);
+      let bestDiff = Infinity;
+      for (let i = 1; i < cats.length; i++) {
+        const left = totalSubs.slice(0, i).reduce((a, b) => a + b, 0);
+        const right = totalSubs.slice(i).reduce((a, b) => a + b, 0);
+        if (Math.abs(left - right) < bestDiff) { bestDiff = Math.abs(left - right); bestSplit = i; }
+      }
+      const col1 = cats.slice(0, bestSplit);
+      const col2 = cats.slice(bestSplit);
 
       function buildCatCard(cat: typeof cats[0]): string {
         const catAvg = avgScore(fb, cat.subcriteria.map((s) => s.key));
         const pct = scoreToPercent(catAvg);
         const color = catAvg && catAvg >= 4 ? "#16a34a" : catAvg && catAvg >= 3 ? "#d97706" : catAvg ? "#dc2626" : "#999";
-        let card = `<div style="margin-bottom: 14px;">`;
-        card += `<div style="display: flex; align-items: center; justify-content: space-between; padding: 7px 10px; background: #1e293b; border-radius: 6px 6px 0 0;">
-          <div style="font-size: 12px; font-weight: 700; color: #fff;">${cat.label}</div>
-          <div style="display: flex; align-items: center; gap: 6px;">
-            <span style="font-size: 9px; color: #94a3b8;">Weight: ${Math.round(cat.weight * 100)}%</span>
-            <span style="font-size: 13px; font-weight: 800; color: ${color === "#999" ? "#94a3b8" : color};">${pct}</span>
+        let card = `<div style="margin-bottom: 16px;">`;
+        card += `<div style="display: flex; align-items: center; justify-content: space-between; padding: 8px 12px; background: #1e293b; border-radius: 6px 6px 0 0;">
+          <div style="font-size: 13px; font-weight: 700; color: #fff;">${cat.label}</div>
+          <div style="display: flex; align-items: center; gap: 8px;">
+            <span style="font-size: 10px; color: #94a3b8;">Weight: ${Math.round(cat.weight * 100)}%</span>
+            <span style="font-size: 14px; font-weight: 800; color: ${color === "#999" ? "#94a3b8" : color};">${pct}</span>
           </div></div>`;
-        card += `<div style="background: #f8fafc; border: 1px solid #e2e8f0; border-top: none; border-radius: 0 0 6px 6px; padding: 8px 10px;">`;
+        card += `<div style="background: #f8fafc; border: 1px solid #e2e8f0; border-top: none; border-radius: 0 0 6px 6px; padding: 10px 12px;">`;
         for (const sc of cat.subcriteria) {
           const val = fb[sc.key] as number | null;
           const isNA = val === -1;
           const display = isNA ? "N/A" : val ? `${val}/5` : "--";
           const scPct = val && val > 0 ? Math.round((val / 5) * 100) : 0;
           const scColor = val && val >= 4 ? "#16a34a" : val && val >= 3 ? "#d97706" : val && val > 0 ? "#dc2626" : "#ccc";
-          card += `<div style="display: flex; align-items: center; gap: 8px; padding: 4px 0; border-bottom: 1px solid #f1f5f9;">
-            <div style="width: 220px; font-size: 11px; color: #555; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${sc.label}</div>
-            <div style="flex: 1; background: #e2e8f0; border-radius: 4px; height: 7px; overflow: hidden;">
+          card += `<div style="display: flex; align-items: center; gap: 10px; padding: 5px 0; border-bottom: 1px solid #f1f5f9;">
+            <div style="min-width: 260px; font-size: 12px; color: #555;">${sc.label}</div>
+            <div style="flex: 1; background: #e2e8f0; border-radius: 4px; height: 8px; overflow: hidden; min-width: 80px;">
               <div style="width: ${isNA ? 0 : scPct}%; height: 100%; background: ${scColor}; border-radius: 4px;"></div>
             </div>
-            <div style="width: 36px; text-align: right; font-size: 11px; font-weight: 600; color: ${isNA ? "#999" : scColor};">${display}</div>
+            <div style="min-width: 36px; text-align: right; font-size: 12px; font-weight: 600; color: ${isNA ? "#999" : scColor};">${display}</div>
           </div>`;
         }
         card += `</div></div>`;
         return card;
       }
 
-      html += `<div style="display: flex; gap: 20px;">`;
+      html += `<div style="display: flex; gap: 24px; align-items: flex-start;">`;
       html += `<div style="flex: 1;">${col1.map(buildCatCard).join("")}</div>`;
       html += `<div style="flex: 1;">${col2.map(buildCatCard).join("")}</div>`;
       html += `</div></div>`;
