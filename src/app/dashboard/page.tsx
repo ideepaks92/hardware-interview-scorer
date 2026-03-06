@@ -490,7 +490,7 @@ export default function DashboardPage() {
           });
           const color = CHART_COLORS[i % CHART_COLORS.length];
           return {
-            label: c.name,
+            label: c.name.split(" ")[0],
             data,
             backgroundColor: color.bg,
             borderColor: color.border,
@@ -780,12 +780,13 @@ export default function DashboardPage() {
                           r: {
                             beginAtZero: true,
                             max: 100,
-                            ticks: { stepSize: 20, font: { size: 10 }, showLabelBackdrop: true, backdropColor: "rgba(255,255,255,0.85)", backdropPadding: 2, z: 1 },
+                            ticks: { stepSize: 20, font: { size: 10, weight: "bold" as const }, showLabelBackdrop: false, color: "#94a3b8", z: 1 },
                             pointLabels: { font: { size: 11, weight: "bold" as const } },
+                            startAngle: 15,
                           },
                         },
                         plugins: {
-                          legend: { position: "bottom" as const, labels: { font: { size: 12 } } },
+                          legend: { position: "bottom" as const, labels: { font: { size: 12 }, usePointStyle: true, pointStyle: "circle" } },
                           tooltip: {
                             callbacks: {
                               label: (ctx) => `${ctx.dataset.label}: ${ctx.raw}%`,
