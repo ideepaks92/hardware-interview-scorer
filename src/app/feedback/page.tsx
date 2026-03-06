@@ -92,10 +92,11 @@ function FeedbackForm() {
     async (id: string) => {
       try {
         const res = await fetch(
-          `/api/feedback?interviewer_id=&include_drafts=true`
+          `/api/feedback?include_drafts=true`
         );
         if (!res.ok) return;
         const all = await res.json();
+        if (!Array.isArray(all)) return;
         const fb = all.find(
           (f: Record<string, unknown>) => f.id === id
         );
@@ -147,7 +148,8 @@ function FeedbackForm() {
 
     fetch("/api/candidates")
       .then((r) => r.json())
-      .then(setCandidates);
+      .then((data) => { if (Array.isArray(data)) setCandidates(data); })
+      .catch(() => {});
   }, [router]);
 
   useEffect(() => {

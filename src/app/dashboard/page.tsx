@@ -115,34 +115,43 @@ export default function DashboardPage() {
 
   const fetchData = useCallback(async () => {
     if (!interviewer) return;
-    const [candRes, fbRes, allFbRes, myAllFbRes] = await Promise.all([
-      fetch("/api/candidates"),
-      fetch(`/api/feedback?interviewer_id=${interviewer.id}`),
-      fetch("/api/feedback"),
-      fetch(`/api/feedback?interviewer_id=${interviewer.id}&include_drafts=true`),
-    ]);
-    setCandidates(await candRes.json());
-    const myFb = await fbRes.json();
-    const allFb = await allFbRes.json();
-    const myAllFb = await myAllFbRes.json();
-    setFeedbacks(myFb);
-    setAllFeedbacks(allFb);
-    setMyAllFeedbacks(myAllFb);
+    try {
+      const [candRes, fbRes, allFbRes, myAllFbRes] = await Promise.all([
+        fetch("/api/candidates"),
+        fetch(`/api/feedback?interviewer_id=${interviewer.id}`),
+        fetch("/api/feedback"),
+        fetch(`/api/feedback?interviewer_id=${interviewer.id}&include_drafts=true`),
+      ]);
 
-    const allIds = [...new Set([...myFb, ...allFb].map((f: Feedback) => f.id))];
-    const imageMap: Record<string, FeedbackImage[]> = {};
-    await Promise.all(
-      allIds.map(async (id) => {
-        try {
-          const res = await fetch(`/api/feedback/${id}/images`);
-          if (res.ok) {
-            const imgs = await res.json();
-            if (imgs.length > 0) imageMap[id as string] = imgs;
-          }
-        } catch { /* skip */ }
-      })
-    );
-    setFeedbackImages(imageMap);
+      const candData = await candRes.json();
+      const myFb = await fbRes.json();
+      const allFb = await allFbRes.json();
+      const myAllFb = await myAllFbRes.json();
+
+      if (Array.isArray(candData)) setCandidates(candData);
+      if (Array.isArray(myFb)) setFeedbacks(myFb);
+      if (Array.isArray(allFb)) setAllFeedbacks(allFb);
+      if (Array.isArray(myAllFb)) setMyAllFeedbacks(myAllFb);
+
+      const safeFb = Array.isArray(myFb) ? myFb : [];
+      const safeAll = Array.isArray(allFb) ? allFb : [];
+      const allIds = [...new Set([...safeFb, ...safeAll].map((f: Feedback) => f.id))];
+      const imageMap: Record<string, FeedbackImage[]> = {};
+      await Promise.all(
+        allIds.map(async (id) => {
+          try {
+            const res = await fetch(`/api/feedback/${id}/images`);
+            if (res.ok) {
+              const imgs = await res.json();
+              if (Array.isArray(imgs) && imgs.length > 0) imageMap[id as string] = imgs;
+            }
+          } catch { /* skip */ }
+        })
+      );
+      setFeedbackImages(imageMap);
+    } catch (err) {
+      console.error("Dashboard fetch error:", err);
+    }
   }, [interviewer]);
 
   useEffect(() => {
