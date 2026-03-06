@@ -6,13 +6,14 @@ import ThemeToggle from "@/components/ThemeToggle";
 
 export default function LoginPage() {
   const router = useRouter();
+  const [mode, setMode] = useState<"signin" | "signup">("signin");
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
-  const [role, setRole] = useState("");
+  const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
-  async function handleLogin(e: React.FormEvent) {
+  async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError("");
     setLoading(true);
@@ -21,11 +22,16 @@ export default function LoginPage() {
       const res = await fetch("/api/auth", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name, email, role }),
+        body: JSON.stringify({
+          name: mode === "signup" ? name : undefined,
+          email,
+          password,
+          action: mode,
+        }),
       });
 
       if (!res.ok) {
-        let msg = "Login failed";
+        let msg = "Something went wrong";
         try {
           const data = await res.json();
           msg = data.error || msg;
@@ -64,23 +70,50 @@ export default function LoginPage() {
           </p>
         </div>
 
+        <div className="flex gap-1 bg-surface-secondary rounded-lg p-1 mb-6">
+          <button
+            type="button"
+            onClick={() => { setMode("signin"); setError(""); }}
+            className={`flex-1 px-4 py-2 rounded-md text-sm font-medium transition-colors cursor-pointer ${
+              mode === "signin"
+                ? "bg-surface text-foreground shadow-sm"
+                : "text-muted hover:text-foreground"
+            }`}
+          >
+            Sign In
+          </button>
+          <button
+            type="button"
+            onClick={() => { setMode("signup"); setError(""); }}
+            className={`flex-1 px-4 py-2 rounded-md text-sm font-medium transition-colors cursor-pointer ${
+              mode === "signup"
+                ? "bg-surface text-foreground shadow-sm"
+                : "text-muted hover:text-foreground"
+            }`}
+          >
+            Sign Up
+          </button>
+        </div>
+
         <form
-          onSubmit={handleLogin}
+          onSubmit={handleSubmit}
           className="bg-surface rounded-2xl shadow-sm border border-border p-8 space-y-5"
         >
-          <div>
-            <label className="block text-sm font-medium mb-1.5">
-              Your Name
-            </label>
-            <input
-              type="text"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              required
-              placeholder="Jane Smith"
-              className="w-full px-4 py-2.5 border border-border rounded-lg bg-background focus:outline-none focus:ring-2 focus:ring-accent focus:border-transparent"
-            />
-          </div>
+          {mode === "signup" && (
+            <div>
+              <label className="block text-sm font-medium mb-1.5">
+                Your Name
+              </label>
+              <input
+                type="text"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                required={mode === "signup"}
+                placeholder="Jane Smith"
+                className="w-full px-4 py-2.5 border border-border rounded-lg bg-background focus:outline-none focus:ring-2 focus:ring-accent focus:border-transparent"
+              />
+            </div>
+          )}
 
           <div>
             <label className="block text-sm font-medium mb-1.5">Email</label>
@@ -96,13 +129,15 @@ export default function LoginPage() {
 
           <div>
             <label className="block text-sm font-medium mb-1.5">
-              Your Role / Position
+              Password
             </label>
             <input
-              type="text"
-              value={role}
-              onChange={(e) => setRole(e.target.value)}
-              placeholder="Sr. Mechanical Engineer"
+              type="password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              required
+              minLength={6}
+              placeholder={mode === "signup" ? "Min 6 characters" : "Enter your password"}
               className="w-full px-4 py-2.5 border border-border rounded-lg bg-background focus:outline-none focus:ring-2 focus:ring-accent focus:border-transparent"
             />
           </div>
@@ -118,12 +153,20 @@ export default function LoginPage() {
             disabled={loading}
             className="w-full py-3 bg-accent text-white font-semibold rounded-lg hover:bg-accent-hover transition-colors disabled:opacity-50 cursor-pointer"
           >
-            {loading ? "Signing in..." : "Sign In"}
+            {loading
+              ? mode === "signup"
+                ? "Creating account..."
+                : "Signing in..."
+              : mode === "signup"
+                ? "Create Account"
+                : "Sign In"}
           </button>
         </form>
 
         <p className="text-center text-muted text-xs mt-6">
-          No password required — sign in with your name and email.
+          {mode === "signin"
+            ? "Don't have an account? Switch to Sign Up above."
+            : "Already have an account? Switch to Sign In above."}
         </p>
       </div>
     </div>

@@ -147,6 +147,17 @@ async function migrate(db: Client) {
       "ALTER TABLE candidates ADD COLUMN resume_data TEXT"
     );
   }
+
+  const interviewerCols = await db.execute("PRAGMA table_info(interviewers)");
+  const interviewerColNames = new Set(
+    (interviewerCols.rows as unknown as { name: string }[]).map((c) => c.name)
+  );
+
+  if (!interviewerColNames.has("password_hash")) {
+    await db.execute(
+      "ALTER TABLE interviewers ADD COLUMN password_hash TEXT"
+    );
+  }
 }
 
 export default getDb;
