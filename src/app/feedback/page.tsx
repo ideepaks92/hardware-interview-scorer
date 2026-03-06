@@ -22,7 +22,7 @@ interface Candidate {
 const RECOMMENDATION_OPTIONS = [
   { value: "strong_yes", label: "Strong Yes", color: "bg-emerald-500" },
   { value: "yes", label: "Yes", color: "bg-green-500" },
-  { value: "maybe", label: "Maybe", color: "bg-amber-500" },
+
   { value: "no", label: "No", color: "bg-red-500" },
   { value: "strong_no", label: "Strong No", color: "bg-red-700" },
 ];
