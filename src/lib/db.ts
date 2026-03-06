@@ -94,6 +94,7 @@ async function initializeDb(db: Client) {
       overall_recommendation TEXT,
       overall_comments TEXT,
 
+      time_spent_seconds INTEGER DEFAULT 0,
       status TEXT DEFAULT 'submitted',
       created_at TEXT DEFAULT (datetime('now')),
       updated_at TEXT DEFAULT (datetime('now')),
@@ -161,6 +162,12 @@ async function migrate(db: Client) {
   if (!existing.has("updated_at")) {
     await db.execute(
       "ALTER TABLE feedback ADD COLUMN updated_at TEXT DEFAULT (datetime('now'))"
+    );
+  }
+
+  if (!existing.has("time_spent_seconds")) {
+    await db.execute(
+      "ALTER TABLE feedback ADD COLUMN time_spent_seconds INTEGER DEFAULT 0"
     );
   }
 

@@ -80,6 +80,7 @@ export async function POST(req: NextRequest) {
       "overall_recommendation",
       "overall_comments",
       "status",
+      "time_spent_seconds",
     ];
 
     const placeholders = allColumns.map(() => "?").join(", ");
@@ -96,6 +97,7 @@ export async function POST(req: NextRequest) {
       body.overall_recommendation || null,
       body.overall_comments || null,
       status,
+      body.time_spent_seconds ?? 0,
     ];
 
     await db.execute({
@@ -141,6 +143,7 @@ export async function PUT(req: NextRequest) {
       "overall_recommendation",
       "overall_comments",
       "status",
+      "time_spent_seconds",
       "updated_at",
     ];
 
@@ -155,6 +158,7 @@ export async function PUT(req: NextRequest) {
       body.overall_recommendation || null,
       body.overall_comments || null,
       status,
+      body.time_spent_seconds ?? 0,
       new Date().toISOString().replace("T", " ").slice(0, 19),
       body.id,
     ];

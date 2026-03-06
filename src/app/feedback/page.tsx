@@ -59,6 +59,35 @@ function FeedbackForm() {
   const [uploadingImages, setUploadingImages] = useState(false);
   const [validationErrors, setValidationErrors] = useState<string[]>([]);
 
+  const sessionStartRef = useRef<number>(Date.now());
+  const accumulatedSecondsRef = useRef<number>(0);
+  const pausedAtRef = useRef<number | null>(null);
+
+  function getElapsedSeconds(): number {
+    const sessionElapsed = pausedAtRef.current !== null
+      ? Math.round((pausedAtRef.current - sessionStartRef.current) / 1000)
+      : Math.round((Date.now() - sessionStartRef.current) / 1000);
+    return accumulatedSecondsRef.current + sessionElapsed;
+  }
+
+  useEffect(() => {
+    function handleVisibility() {
+      if (document.hidden) {
+        pausedAtRef.current = Date.now();
+      } else {
+        if (pausedAtRef.current !== null) {
+          accumulatedSecondsRef.current += Math.round(
+            (pausedAtRef.current - sessionStartRef.current) / 1000
+          );
+          sessionStartRef.current = Date.now();
+          pausedAtRef.current = null;
+        }
+      }
+    }
+    document.addEventListener("visibilitychange", handleVisibility);
+    return () => document.removeEventListener("visibilitychange", handleVisibility);
+  }, []);
+
   const loadExistingFeedback = useCallback(
     async (id: string) => {
       try {
@@ -99,6 +128,10 @@ function FeedbackForm() {
 
         setRecommendation((fb.overall_recommendation as string) || "");
         setOverallComments((fb.overall_comments as string) || "");
+
+        if (typeof fb.time_spent_seconds === "number" && fb.time_spent_seconds > 0) {
+          accumulatedSecondsRef.current = fb.time_spent_seconds;
+        }
       } catch { /* skip */ }
     },
     []
@@ -214,6 +247,7 @@ function FeedbackForm() {
       overall_recommendation: recommendation || null,
       overall_comments: overallComments || null,
       status,
+      time_spent_seconds: getElapsedSeconds(),
     };
 
     if (editId) body.id = editId;

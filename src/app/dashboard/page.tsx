@@ -896,10 +896,23 @@ export default function DashboardPage() {
                           )}
                         </div>
 
-                        <div className="flex items-center gap-3 text-sm text-muted mt-1">
+                        <div className="flex items-center gap-3 text-sm text-muted mt-1 flex-wrap">
                           <span>Interview: {fb.interview_date}</span>
                           <span className="text-border">|</span>
                           <span>{isDraft ? "Last saved" : "Submitted"}: {dateStr}</span>
+                          {typeof fb.time_spent_seconds === "number" && fb.time_spent_seconds > 0 && (
+                            <>
+                              <span className="text-border">|</span>
+                              <span className="inline-flex items-center gap-1">
+                                <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                </svg>
+                                {fb.time_spent_seconds >= 60
+                                  ? `${Math.floor(fb.time_spent_seconds / 60)}m ${fb.time_spent_seconds % 60}s`
+                                  : `${fb.time_spent_seconds}s`}
+                              </span>
+                            </>
+                          )}
                         </div>
 
                         {problems.length > 0 && (
